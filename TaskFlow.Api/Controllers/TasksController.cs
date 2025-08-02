@@ -329,4 +329,81 @@ public class TasksController : BaseController
             return StatusCode(500, ApiResponse<bool>.ErrorResult("An error occurred while deleting the task"));
         }
     }
+
+    [HttpGet("calendar/{year:int}/{month:int}")]
+    public async Task<ActionResult<ApiResponse<List<TaskDto>>>> GetTasksByMonth(int year, int month)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
+
+            if (month < 1 || month > 12)
+                return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid month value"));
+
+            var tasks = await _taskRepository.GetTasksByMonthAsync(userId, year, month);
+            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+
+            return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tasks for {Year}-{Month}", year, month);
+            return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving tasks"));
+        }
+    }
+
+    [HttpGet("calendar/week")]
+    public async Task<ActionResult<ApiResponse<List<TaskDto>>>> GetTasksByWeek([FromQuery] string startDate)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
+
+            if (!DateTime.TryParse(startDate, out var parsedStartDate))
+                return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid start date format"));
+
+            var tasks = await _taskRepository.GetTasksByWeekAsync(userId, parsedStartDate.Date);
+            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+
+            return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tasks for week starting {StartDate}", startDate);
+            return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving tasks"));
+        }
+    }
+
+    [HttpGet("calendar/range")]
+    public async Task<ActionResult<ApiResponse<List<TaskDto>>>> GetTasksByDateRange(
+        [FromQuery] string startDate,
+        [FromQuery] string endDate)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
+
+            if (!DateTime.TryParse(startDate, out var parsedStartDate))
+                return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid start date format"));
+
+            if (!DateTime.TryParse(endDate, out var parsedEndDate))
+                return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid end date format"));
+
+            var tasks = await _taskRepository.GetTasksByDateRangeAsync(userId, parsedStartDate.Date, parsedEndDate.Date);
+            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+
+            return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tasks for date range {StartDate} to {EndDate}", startDate, endDate);
+            return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving tasks"));
+        }
+    }
 }

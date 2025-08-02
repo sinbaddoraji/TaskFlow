@@ -13,4 +13,9 @@ public interface ITaskRepository : IBaseRepository<TaskItem>
     Task<List<TaskItem>> GetOverdueTasksAsync(string userId);
     Task<List<TaskItem>> SearchTasksAsync(string userId, string searchTerm);
     Task<List<TaskItem>> GetTasksByTagsAsync(string userId, List<string> tags);
+    
+    // Calendar-specific methods
+    Task<List<TaskItem>> GetTasksByDateRangeAsync(string userId, DateTime startDate, DateTime endDate);
+    Task<List<TaskItem>> GetTasksByMonthAsync(string userId, int year, int month);
+    Task<List<TaskItem>> GetTasksByWeekAsync(string userId, DateTime startDate);
 }

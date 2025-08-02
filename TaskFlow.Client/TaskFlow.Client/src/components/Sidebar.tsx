@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, 
@@ -6,6 +5,7 @@ import {
   User, 
   Settings, 
   Home,
+  Calendar,
   LogOut 
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -24,6 +24,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   };
 
   const menuItems = [
+    { icon: Calendar, label: 'Today', path: '/today' },
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];

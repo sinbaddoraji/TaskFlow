@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   <div className="h-24 w-24 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
                     {profile.profilePicture ? (
                       <img
-                        src={`${import.meta.env.VITE_API_BASE_URL || 'https://localhost:7298'}${profile.profilePicture}`}
+                        src={`${import.meta.env.VITE_API_BASE_URL || 'https://localhost:7170'}${profile.profilePicture}`}
                         alt="Profile"
                         className="h-full w-full object-cover"
                       />

@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Save, ArrowLeft, Bell, Shield, Palette } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 import Layout from '../components/Layout';
 
 export default function Settings() {
-  const { user } = useAuth();
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -33,7 +31,7 @@ export default function Settings() {
     // Show success message (you could add a toast here)
   };
 
-  const updateSetting = (category: string, key: string, value: any) => {
+  const updateSetting = (category: string, key: string, value: unknown) => {
     setSettings(prev => ({
       ...prev,
       [category]: {

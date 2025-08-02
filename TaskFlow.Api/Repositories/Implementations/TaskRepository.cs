@@ -93,4 +93,33 @@ public class TaskRepository : BaseRepository<TaskItem>, ITaskRepository
             t.Tags.Any(tag => tags.Contains(tag))
         );
     }
+
+    public async Task<List<TaskItem>> GetTasksByDateRangeAsync(string userId, DateTime startDate, DateTime endDate)
+    {
+        var startDateUtc = startDate.Date;
+        var endDateUtc = endDate.Date.AddDays(1);
+        
+        return await FindAsync(t => 
+            t.AssignedUserId == userId && 
+            (
+                (t.DueDate.HasValue && t.DueDate.Value >= startDateUtc && t.DueDate.Value < endDateUtc) ||
+                (t.ScheduledTime.HasValue && t.ScheduledTime.Value >= startDateUtc && t.ScheduledTime.Value < endDateUtc)
+            )
+        );
+    }
+
+    public async Task<List<TaskItem>> GetTasksByMonthAsync(string userId, int year, int month)
+    {
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+        
+        return await GetTasksByDateRangeAsync(userId, startDate, endDate);
+    }
+
+    public async Task<List<TaskItem>> GetTasksByWeekAsync(string userId, DateTime startDate)
+    {
+        var endDate = startDate.AddDays(6);
+        
+        return await GetTasksByDateRangeAsync(userId, startDate, endDate);
+    }
 }

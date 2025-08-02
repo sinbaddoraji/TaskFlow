@@ -5,6 +5,7 @@ import GuestRoute from "./components/GuestRoute";
 import LoginPage from "./pages/authentication/login";
 import RegisterPage from "./pages/authentication/register";
 import Dashboard from "./pages/Dashboard";
+import Today from "./pages/Today";
 import ProfilePage from "./pages/Profile";
 import ChangePasswordPage from "./pages/ChangePassword";
 import SettingsPage from "./pages/Settings";
@@ -33,6 +34,14 @@ function App() {
           />
 
           {/* Protected Routes */}
+          <Route
+            path="/today"
+            element={
+              <ProtectedRoute>
+                <Today />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
@@ -67,10 +76,10 @@ function App() {
           />
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/today" replace />} />
           
           {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
