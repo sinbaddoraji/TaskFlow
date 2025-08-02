@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { User, Mail, Phone, MapPin, Globe, Camera, Save, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { profileService } from '../services/profileService';
+import Layout from '../components/Layout';
 import type { ProfileResponse, UpdateProfileRequest } from '../services/profileService';
 
 interface ProfileFormData {
@@ -114,31 +115,35 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      </Layout>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Failed to load profile</p>
-          <button
-            onClick={loadProfile}
-            className="mt-4 text-indigo-600 hover:text-indigo-500"
-          >
-            Try again
-          </button>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-gray-600">Failed to load profile</p>
+            <button
+              onClick={loadProfile}
+              className="mt-4 text-indigo-600 hover:text-indigo-500"
+            >
+              Try again
+            </button>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-3xl mx-auto py-6 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Header */}
           <div className="mb-6">
@@ -379,6 +384,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

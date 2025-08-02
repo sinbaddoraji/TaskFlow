@@ -7,6 +7,7 @@ import RegisterPage from "./pages/authentication/register";
 import Dashboard from "./pages/Dashboard";
 import ProfilePage from "./pages/Profile";
 import ChangePasswordPage from "./pages/ChangePassword";
+import SettingsPage from "./pages/Settings";
 
 function App() {
   return (
@@ -53,6 +54,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

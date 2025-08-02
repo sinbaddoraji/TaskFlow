@@ -1,45 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LogOut, User } from 'lucide-react';
+import Layout from '../components/Layout';
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-  };
+  const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">TaskFlow</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/profile"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <User className="h-4 w-4 mr-1" />
-                Profile
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="p-6">
         <div className="px-4 py-6 sm:px-0">
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -60,7 +28,7 @@ export default function Dashboard() {
                     View Profile
                   </Link>
                   <Link
-                    to="/profile/settings"
+                    to="/settings"
                     className="block text-indigo-600 hover:text-indigo-500 text-sm"
                   >
                     Account Settings
@@ -87,7 +55,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }

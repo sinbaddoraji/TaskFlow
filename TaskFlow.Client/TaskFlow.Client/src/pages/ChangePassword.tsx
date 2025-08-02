@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 import { profileService } from '../services/profileService';
+import Layout from '../components/Layout';
 import type { ChangePasswordRequest } from '../services/profileService';
 
 interface PasswordFormData {
@@ -64,8 +65,8 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-2xl mx-auto py-6 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="max-w-2xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Header */}
           <div className="mb-6">
@@ -269,6 +270,6 @@ export default function ChangePasswordPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
