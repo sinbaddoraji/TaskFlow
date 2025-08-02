@@ -276,6 +276,51 @@ public class TasksController : BaseController
         }
     }
 
+    [HttpPatch("{id}/status")]
+    public async Task<ActionResult<ApiResponse<TaskDto>>> UpdateTaskStatus(string id, [FromBody] UpdateTaskStatusRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(id);
+            if (task == null)
+                return NotFound(ApiResponse<TaskDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            if (!Enum.TryParse<Models.Entities.TaskStatus>(request.Status, true, out var newStatus))
+                return BadRequest(ApiResponse<TaskDto>.ErrorResult("Invalid status value"));
+
+            var oldStatus = task.Status;
+            task.Status = newStatus;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            // Handle status-specific logic
+            if (newStatus == Models.Entities.TaskStatus.Completed && oldStatus != Models.Entities.TaskStatus.Completed)
+            {
+                task.CompletedAt = DateTime.UtcNow;
+            }
+            else if (newStatus != Models.Entities.TaskStatus.Completed && oldStatus == Models.Entities.TaskStatus.Completed)
+            {
+                task.CompletedAt = null;
+            }
+
+            var updatedTask = await _taskRepository.UpdateAsync(id, task);
+            var taskDto = _mapper.Map<TaskDto>(updatedTask);
+
+            return Ok(ApiResponse<TaskDto>.SuccessResult(taskDto, $"Task status updated to {newStatus} successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating task status {TaskId}", id);
+            return StatusCode(500, ApiResponse<TaskDto>.ErrorResult("An error occurred while updating the task status"));
+        }
+    }
+
     [HttpPatch("{id}/complete")]
     public async Task<ActionResult<ApiResponse<TaskDto>>> CompleteTask(string id)
     {

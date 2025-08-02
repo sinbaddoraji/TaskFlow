@@ -128,6 +128,7 @@ export default function CalendarView({
     onTaskUpdate?.(updatedTask);
   };
 
+
   const getTasksForDate = (date: Date): TaskDto[] => {
     const filteredTasks = tasks.filter(task => {
       const taskDate = task.dueDate ? new Date(task.dueDate) : 

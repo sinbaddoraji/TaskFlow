@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -69,6 +70,26 @@ const columns: Column[] = [
     color: 'border-red-300 bg-red-50',
   },
 ];
+
+interface ColumnDropZoneProps {
+  column: Column;
+  children: React.ReactNode;
+}
+
+function ColumnDropZone({ column, children }: ColumnDropZoneProps) {
+  const { setNodeRef } = useDroppable({
+    id: column.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-full rounded-lg border-2 ${column.color} p-3`}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function KanbanBoard({
   tasks,
@@ -160,10 +181,7 @@ export default function KanbanBoard({
     >
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pb-4">
         {columns.map(column => (
-          <div
-            key={column.id}
-            className={`w-full rounded-lg border-2 ${column.color} p-3`}
-          >
+          <ColumnDropZone key={column.id} column={column}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-gray-600">{column.icon}</span>
@@ -216,7 +234,7 @@ export default function KanbanBoard({
                 )}
               </div>
             </SortableContext>
-          </div>
+          </ColumnDropZone>
         ))}
       </div>
 

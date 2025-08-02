@@ -35,20 +35,7 @@ export default function Today() {
 
   const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
     try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      const updatedTask = await calendarService.updateTask(taskId, {
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        status: newStatus,
-        dueDate: task.dueDate,
-        scheduledTime: task.scheduledTime,
-        timeEstimateInMinutes: task.timeEstimateInMinutes,
-        tags: task.tags,
-      });
-
+      const updatedTask = await calendarService.updateTaskStatus(taskId, newStatus);
       setTasks(prevTasks =>
         prevTasks.map(t => (t.id === taskId ? updatedTask : t))
       );

@@ -179,6 +179,17 @@ export const calendarService = {
     }
   },
 
+  // Update task status
+  async updateTaskStatus(id: string, status: string): Promise<TaskDto> {
+    try {
+      const response = await api.patch<ApiResponse<TaskDto>>(`/tasks/${id}/status`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      throw error;
+    }
+  },
+
   // Complete a task
   async completeTask(id: string): Promise<TaskDto> {
     try {
