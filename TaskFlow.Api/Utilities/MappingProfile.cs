@@ -20,9 +20,11 @@ public class MappingProfile : Profile
         CreateMap<TaskItem, TaskDto>()
             .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority.ToString()))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.Subtasks, opt => opt.MapFrom(src => src.Subtasks));
+            .ForMember(dest => dest.Subtasks, opt => opt.MapFrom(src => src.Subtasks))
+            .ForMember(dest => dest.Comments, opt => opt.MapFrom(src => src.Comments));
 
         CreateMap<SubTask, SubTaskDto>();
+        CreateMap<Comment, CommentDto>();
         CreateMap<TaskRecurrence, TaskRecurrenceDto>()
             .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString()))
             .ForMember(dest => dest.DaysOfWeek, opt => opt.MapFrom(src => src.DaysOfWeek != null ? src.DaysOfWeek.Select(d => d.ToString()).ToList() : null));
@@ -33,7 +35,7 @@ public class MappingProfile : Profile
         CreateMap<CreateTaskRequest, TaskItem>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => Enum.Parse<TaskPriority>(src.Priority, true)))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Models.Entities.TaskStatus.Pending))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Enum.Parse<Models.Entities.TaskStatus>(src.Status, true)))
             .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
             .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
             .ForMember(dest => dest.Subtasks, opt => opt.MapFrom(src => src.Subtasks));

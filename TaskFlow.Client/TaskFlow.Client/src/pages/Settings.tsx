@@ -1,20 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Save, ArrowLeft, Bell, Shield, Palette } from 'lucide-react';
+import { Save, ArrowLeft, Palette } from 'lucide-react';
 import Layout from '../components/Layout';
 
 export default function Settings() {
   const [settings, setSettings] = useState({
-    notifications: {
-      email: true,
-      push: false,
-      taskReminders: true,
-      weeklyReports: false,
-    },
-    privacy: {
-      profileVisibility: 'private',
-      shareData: false,
-    },
     appearance: {
       theme: 'light',
       compactMode: false,
@@ -60,100 +50,6 @@ export default function Settings() {
         </div>
 
         <div className="space-y-6">
-          {/* Notifications Section */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <Bell className="h-5 w-5 text-gray-400 mr-2" />
-              <h2 className="text-lg font-medium text-gray-900">Notifications</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Email Notifications</label>
-                  <p className="text-sm text-gray-500">Receive notifications via email</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.email}
-                  onChange={(e) => updateSetting('notifications', 'email', e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Push Notifications</label>
-                  <p className="text-sm text-gray-500">Receive push notifications in your browser</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.push}
-                  onChange={(e) => updateSetting('notifications', 'push', e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Task Reminders</label>
-                  <p className="text-sm text-gray-500">Get reminded about upcoming tasks</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.taskReminders}
-                  onChange={(e) => updateSetting('notifications', 'taskReminders', e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Weekly Reports</label>
-                  <p className="text-sm text-gray-500">Receive weekly productivity reports</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.weeklyReports}
-                  onChange={(e) => updateSetting('notifications', 'weeklyReports', e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Privacy Section */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <Shield className="h-5 w-5 text-gray-400 mr-2" />
-              <h2 className="text-lg font-medium text-gray-900">Privacy</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Visibility
-                </label>
-                <select
-                  value={settings.privacy.profileVisibility}
-                  onChange={(e) => updateSetting('privacy', 'profileVisibility', e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="private">Private</option>
-                  <option value="public">Public</option>
-                  <option value="team">Team Only</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Share Usage Data</label>
-                  <p className="text-sm text-gray-500">Help improve TaskFlow by sharing anonymous usage data</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.privacy.shareData}
-                  onChange={(e) => updateSetting('privacy', 'shareData', e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Appearance Section */}
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center mb-4">

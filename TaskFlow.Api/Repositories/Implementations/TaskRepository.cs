@@ -29,8 +29,13 @@ public class TaskRepository : BaseRepository<TaskItem>, ITaskRepository
         return await FindAsync(t => 
             t.AssignedUserId == userId && 
             (
+                // Tasks with today's due date or scheduled time
                 (t.DueDate.HasValue && t.DueDate.Value.Date == today) ||
-                (t.ScheduledTime.HasValue && t.ScheduledTime.Value >= today && t.ScheduledTime.Value < tomorrow)
+                (t.ScheduledTime.HasValue && t.ScheduledTime.Value >= today && t.ScheduledTime.Value < tomorrow) ||
+                // Include InProgress tasks without specific dates (active work items)
+                (t.Status == Models.Entities.TaskStatus.InProgress && 
+                 (!t.DueDate.HasValue || t.DueDate.Value.Date >= today) && 
+                 (!t.ScheduledTime.HasValue || t.ScheduledTime.Value >= today))
             ) &&
             t.Status != Models.Entities.TaskStatus.Completed
         );

@@ -6,6 +6,7 @@ using TaskFlow.Api.Models.Entities;
 using TaskFlow.Api.Models.Requests;
 using TaskFlow.Api.Models.Responses;
 using TaskFlow.Api.Repositories.Interfaces;
+using MongoDB.Bson;
 
 namespace TaskFlow.Api.Controllers;
 
@@ -15,17 +16,20 @@ public class TasksController : BaseController
 {
     private readonly ITaskRepository _taskRepository;
     private readonly IProjectRepository _projectRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
     public TasksController(
         ITaskRepository taskRepository,
         IProjectRepository projectRepository,
+        IUserRepository userRepository,
         IMapper mapper,
         ILogger<TasksController> logger)
         : base(logger)
     {
         _taskRepository = taskRepository;
         _projectRepository = projectRepository;
+        _userRepository = userRepository;
         _mapper = mapper;
     }
 
@@ -404,6 +408,272 @@ public class TasksController : BaseController
         {
             _logger.LogError(ex, "Error retrieving tasks for date range {StartDate} to {EndDate}", startDate, endDate);
             return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving tasks"));
+        }
+    }
+
+    // Subtask Management Endpoints
+    [HttpPost("{taskId}/subtasks")]
+    public async Task<ActionResult<ApiResponse<SubTaskDto>>> AddSubtask(string taskId, CreateSubtaskRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var subtask = new SubTask
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                Title = request.Title,
+                Completed = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            task.Subtasks.Add(subtask);
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+
+            return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask added successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding subtask to task {TaskId}", taskId);
+            return StatusCode(500, ApiResponse<SubTaskDto>.ErrorResult("An error occurred while adding the subtask"));
+        }
+    }
+
+    [HttpPut("{taskId}/subtasks/{subtaskId}")]
+    public async Task<ActionResult<ApiResponse<SubTaskDto>>> UpdateSubtask(string taskId, string subtaskId, UpdateSubtaskRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var subtask = task.Subtasks.FirstOrDefault(s => s.Id == subtaskId);
+            if (subtask == null)
+                return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Subtask not found"));
+
+            subtask.Title = request.Title;
+            subtask.Completed = request.Completed;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+
+            return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask updated successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating subtask {SubtaskId} in task {TaskId}", subtaskId, taskId);
+            return StatusCode(500, ApiResponse<SubTaskDto>.ErrorResult("An error occurred while updating the subtask"));
+        }
+    }
+
+    [HttpDelete("{taskId}/subtasks/{subtaskId}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteSubtask(string taskId, string subtaskId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<bool>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<bool>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var subtaskRemoved = task.Subtasks.RemoveAll(s => s.Id == subtaskId) > 0;
+            if (!subtaskRemoved)
+                return NotFound(ApiResponse<bool>.ErrorResult("Subtask not found"));
+
+            task.UpdatedAt = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(taskId, task);
+
+            return Ok(ApiResponse<bool>.SuccessResult(true, "Subtask deleted successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting subtask {SubtaskId} from task {TaskId}", subtaskId, taskId);
+            return StatusCode(500, ApiResponse<bool>.ErrorResult("An error occurred while deleting the subtask"));
+        }
+    }
+
+    [HttpPatch("{taskId}/subtasks/{subtaskId}/toggle")]
+    public async Task<ActionResult<ApiResponse<SubTaskDto>>> ToggleSubtask(string taskId, string subtaskId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var subtask = task.Subtasks.FirstOrDefault(s => s.Id == subtaskId);
+            if (subtask == null)
+                return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Subtask not found"));
+
+            subtask.Completed = !subtask.Completed;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+
+            return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask toggled successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling subtask {SubtaskId} in task {TaskId}", subtaskId, taskId);
+            return StatusCode(500, ApiResponse<SubTaskDto>.ErrorResult("An error occurred while toggling the subtask"));
+        }
+    }
+
+    // Comment Management Endpoints
+    [HttpPost("{taskId}/comments")]
+    public async Task<ActionResult<ApiResponse<CommentDto>>> AddComment(string taskId, CreateCommentRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<CommentDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<CommentDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            var authorName = user?.Name ?? "Unknown User";
+
+            var comment = new Comment
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                Content = request.Content,
+                AuthorId = userId,
+                AuthorName = authorName,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            task.Comments.Add(comment);
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _taskRepository.UpdateAsync(taskId, task);
+            var commentDto = _mapper.Map<CommentDto>(comment);
+
+            return Ok(ApiResponse<CommentDto>.SuccessResult(commentDto, "Comment added successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding comment to task {TaskId}", taskId);
+            return StatusCode(500, ApiResponse<CommentDto>.ErrorResult("An error occurred while adding the comment"));
+        }
+    }
+
+    [HttpPut("{taskId}/comments/{commentId}")]
+    public async Task<ActionResult<ApiResponse<CommentDto>>> UpdateComment(string taskId, string commentId, UpdateCommentRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<CommentDto>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<CommentDto>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var comment = task.Comments.FirstOrDefault(c => c.Id == commentId);
+            if (comment == null)
+                return NotFound(ApiResponse<CommentDto>.ErrorResult("Comment not found"));
+
+            if (comment.AuthorId != userId)
+                return Forbid();
+
+            comment.Content = request.Content;
+            comment.UpdatedAt = DateTime.UtcNow;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            await _taskRepository.UpdateAsync(taskId, task);
+            var commentDto = _mapper.Map<CommentDto>(comment);
+
+            return Ok(ApiResponse<CommentDto>.SuccessResult(commentDto, "Comment updated successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating comment {CommentId} in task {TaskId}", commentId, taskId);
+            return StatusCode(500, ApiResponse<CommentDto>.ErrorResult("An error occurred while updating the comment"));
+        }
+    }
+
+    [HttpDelete("{taskId}/comments/{commentId}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteComment(string taskId, string commentId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(ApiResponse<bool>.ErrorResult("User not authenticated"));
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+                return NotFound(ApiResponse<bool>.ErrorResult("Task not found"));
+
+            if (task.AssignedUserId != userId)
+                return Forbid();
+
+            var comment = task.Comments.FirstOrDefault(c => c.Id == commentId);
+            if (comment == null)
+                return NotFound(ApiResponse<bool>.ErrorResult("Comment not found"));
+
+            if (comment.AuthorId != userId)
+                return Forbid();
+
+            var commentRemoved = task.Comments.RemoveAll(c => c.Id == commentId) > 0;
+            if (!commentRemoved)
+                return NotFound(ApiResponse<bool>.ErrorResult("Comment not found"));
+
+            task.UpdatedAt = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(taskId, task);
+
+            return Ok(ApiResponse<bool>.SuccessResult(true, "Comment deleted successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting comment {CommentId} from task {TaskId}", commentId, taskId);
+            return StatusCode(500, ApiResponse<bool>.ErrorResult("An error occurred while deleting the comment"));
         }
     }
 }

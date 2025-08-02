@@ -26,18 +26,3 @@ public class ProfileStatistics
     public int CompletedTasks { get; set; }
     public int OverdueTasks { get; set; }
 }
-
-public class UserPreferencesDto
-{
-    public string Theme { get; set; } = "light";
-    public string TimeFormat { get; set; } = "12h";
-    public string StartOfWeek { get; set; } = "monday";
-    public NotificationSettingsDto Notifications { get; set; } = new();
-}
-
-public class NotificationSettingsDto
-{
-    public bool Email { get; set; } = true;
-    public bool Push { get; set; } = true;
-    public bool TaskReminders { get; set; } = true;
-}

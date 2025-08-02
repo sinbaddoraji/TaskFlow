@@ -2,16 +2,31 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
 import { calendarService, type TaskDto } from '../services/calendarService';
+import TaskCardCompact from './TaskCardCompact';
+import TaskCardMedium from './TaskCardMedium';
+import TaskCard from './TaskCard';
 
 interface CalendarViewProps {
   onDateSelect?: (date: Date) => void;
   onTaskClick?: (task: TaskDto) => void;
   onAddTask?: (date: Date) => void;
+  onTaskUpdate?: (updatedTask: TaskDto) => void;
+  onTaskComplete?: (taskId: string) => void;
+  onTaskDelete?: (taskId: string) => void;
+  currentUserId?: string;
 }
 
 export type CalendarViewType = 'month' | 'week' | 'today';
 
-export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: CalendarViewProps) {
+export default function CalendarView({ 
+  onDateSelect, 
+  onTaskClick, 
+  onAddTask, 
+  onTaskUpdate, 
+  onTaskComplete, 
+  onTaskDelete, 
+  currentUserId 
+}: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<CalendarViewType>('month');
   const [tasks, setTasks] = useState<TaskDto[]>([]);
@@ -44,6 +59,28 @@ export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: C
           fetchedTasks = await calendarService.getTodayTasks();
           break;
       }
+      
+      // Group tasks by status for debugging
+      const tasksByStatus = fetchedTasks.reduce((acc, task) => {
+        const status = task.status || 'undefined';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      console.log('📋 Tasks loaded:', {
+        viewType,
+        currentDate: currentDate.toISOString(),
+        taskCount: fetchedTasks.length,
+        tasksByStatus,
+        allStatuses: [...new Set(fetchedTasks.map(t => t.status))],
+        tasks: fetchedTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          dueDate: t.dueDate,
+          scheduledTime: t.scheduledTime
+        }))
+      });
       
       setTasks(fetchedTasks);
     } catch (error) {
@@ -82,22 +119,52 @@ export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: C
     onAddTask?.(date);
   };
 
-  const getTasksForDate = (date: Date): TaskDto[] => {
-    return tasks.filter(task => {
-      const taskDate = task.dueDate ? new Date(task.dueDate) : 
-                     task.scheduledTime ? new Date(task.scheduledTime) : null;
-      return taskDate && isSameDay(taskDate, date);
-    });
+  const handleTaskUpdate = (updatedTask: TaskDto) => {
+    // Update local state
+    setTasks(prevTasks =>
+      prevTasks.map(t => (t.id === updatedTask.id ? updatedTask : t))
+    );
+    // Notify parent component
+    onTaskUpdate?.(updatedTask);
   };
 
-  const getPriorityColor = (priority: string): string => {
-    switch (priority.toLowerCase()) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
+  const getTasksForDate = (date: Date): TaskDto[] => {
+    const filteredTasks = tasks.filter(task => {
+      const taskDate = task.dueDate ? new Date(task.dueDate) : 
+                     task.scheduledTime ? new Date(task.scheduledTime) : null;
+      const matches = taskDate && isSameDay(taskDate, date);
+      
+      if (matches) {
+        console.log('📅 Task for date', format(date, 'yyyy-MM-dd'), ':', {
+          title: task.title,
+          status: task.status,
+          statusDisplay: getStatusDisplay(task.status).display,
+          taskDate: taskDate?.toISOString(),
+          dueDate: task.dueDate,
+          scheduledTime: task.scheduledTime
+        });
+      }
+      
+      return matches;
+    });
+    
+    return filteredTasks;
+  };
+
+
+  const getStatusDisplay = (status: string) => {
+    const statusConfig = {
+      'Pending': { display: 'Pending', className: 'bg-gray-100 text-gray-800' },
+      'InProgress': { display: 'In Progress', className: 'bg-blue-100 text-blue-800' },
+      'Completed': { display: 'Completed', className: 'bg-green-100 text-green-800' },
+      'OnHold': { display: 'On Hold', className: 'bg-yellow-100 text-yellow-800' },
+      'Cancelled': { display: 'Cancelled', className: 'bg-red-100 text-red-800' }
+    };
+    
+    return statusConfig[status as keyof typeof statusConfig] || { 
+      display: status, 
+      className: 'bg-gray-100 text-gray-800' 
+    };
   };
 
   const renderMonthView = () => {
@@ -153,17 +220,13 @@ export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: C
             </div>
             <div className="space-y-1">
               {dayTasks.slice(0, 3).map((task) => (
-                <div
+                <TaskCardCompact
                   key={task.id}
-                  className={`text-xs p-1 rounded truncate cursor-pointer text-white ${getPriorityColor(task.priority)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTaskClick?.(task);
-                  }}
-                  title={task.title}
-                >
-                  {task.title}
-                </div>
+                  task={task}
+                  onTaskUpdate={handleTaskUpdate}
+                  onTaskClick={onTaskClick}
+                  currentUserId={currentUserId}
+                />
               ))}
               {dayTasks.length > 3 && (
                 <div className="text-xs text-gray-500">+{dayTasks.length - 3} more</div>
@@ -228,21 +291,13 @@ export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: C
           </div>
           <div className="space-y-2">
             {dayTasks.map((task) => (
-              <div
+              <TaskCardMedium
                 key={task.id}
-                className={`text-sm p-2 rounded cursor-pointer text-white ${getPriorityColor(task.priority)}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTaskClick?.(task);
-                }}
-              >
-                <div className="font-medium truncate">{task.title}</div>
-                {task.scheduledTime && (
-                  <div className="text-xs opacity-90">
-                    {format(new Date(task.scheduledTime), 'HH:mm')}
-                  </div>
-                )}
-              </div>
+                task={task}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskClick={onTaskClick}
+                currentUserId={currentUserId}
+              />
             ))}
           </div>
         </div>
@@ -285,35 +340,15 @@ export default function CalendarView({ onDateSelect, onTaskClick, onAddTask }: C
           ) : (
             <div className="space-y-3">
               {todayTasks.map((task) => (
-                <div
+                <TaskCard
                   key={task.id}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => onTaskClick?.(task)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                        <h3 className="font-medium text-gray-900">{task.title}</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                          task.status === 'InProgress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {task.status}
-                        </span>
-                      </div>
-                      {task.description && (
-                        <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                      )}
-                      {task.scheduledTime && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          {format(new Date(task.scheduledTime), 'HH:mm')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  task={task}
+                  onEdit={onTaskClick || (() => {})}
+                  onComplete={onTaskComplete || (() => {})}
+                  onDelete={onTaskDelete || (() => {})}
+                  onTaskUpdate={handleTaskUpdate}
+                  currentUserId={currentUserId}
+                />
               ))}
             </div>
           )}

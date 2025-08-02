@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using TaskFlow.Api.Models.Requests;
 using TaskFlow.Api.Models.Responses;
+using TaskFlow.Api.Models.DTOs;
 using TaskFlow.Api.Services.Interfaces;
 using TaskFlow.Api.Repositories.Interfaces;
 using TaskFlow.Api.Models.Entities;

@@ -51,6 +51,9 @@ public class TaskItem
     [BsonElement("subtasks")]
     public List<SubTask> Subtasks { get; set; } = new();
     
+    [BsonElement("comments")]
+    public List<Comment> Comments { get; set; } = new();
+    
     [BsonElement("recurrence")]
     public TaskRecurrence? Recurrence { get; set; }
     
@@ -97,6 +100,28 @@ public class SubTask
     
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class Comment
+{
+    [BsonElement("id")]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
+    
+    [BsonElement("content")]
+    public string Content { get; set; } = string.Empty;
+    
+    [BsonElement("authorId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string AuthorId { get; set; } = string.Empty;
+    
+    [BsonElement("authorName")]
+    public string AuthorName { get; set; } = string.Empty;
+    
+    [BsonElement("createdAt")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    [BsonElement("updatedAt")]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class TaskRecurrence

@@ -19,6 +19,7 @@ public class TaskDto
     public string? AssignedUserName { get; set; }
     public List<string> Tags { get; set; } = new();
     public List<SubTaskDto> Subtasks { get; set; } = new();
+    public List<CommentDto> Comments { get; set; } = new();
     public TaskRecurrenceDto? Recurrence { get; set; }
     public GitInfoDto? GitInfo { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -32,6 +33,16 @@ public class SubTaskDto
     public string Title { get; set; } = string.Empty;
     public bool Completed { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class CommentDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string AuthorId { get; set; } = string.Empty;
+    public string AuthorName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 public class TaskRecurrenceDto

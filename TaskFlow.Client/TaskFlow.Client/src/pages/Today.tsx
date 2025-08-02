@@ -5,8 +5,10 @@ import Layout from '../components/Layout';
 import KanbanBoard from '../components/KanbanBoard';
 import AddTaskModal from '../components/AddTaskModal';
 import { calendarService, type TaskDto } from '../services/calendarService';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Today() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
@@ -85,6 +87,12 @@ export default function Today() {
     }
   };
 
+  const handleTaskUpdate = (updatedTask: TaskDto) => {
+    setTasks(prevTasks =>
+      prevTasks.map(t => (t.id === updatedTask.id ? updatedTask : t))
+    );
+  };
+
   const handleAddTask = () => {
     setEditTask(null);
     setIsAddTaskModalOpen(true);
@@ -142,6 +150,8 @@ export default function Today() {
             onTaskComplete={handleTaskComplete}
             onTaskDelete={handleTaskDelete}
             onAddTask={handleAddTask}
+            onTaskUpdate={handleTaskUpdate}
+            currentUserId={user?.id}
           />
         )}
 

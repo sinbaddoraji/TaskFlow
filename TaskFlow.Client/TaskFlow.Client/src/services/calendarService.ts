@@ -17,6 +17,7 @@ export interface TaskDto {
   assignedUserName?: string;
   tags: string[];
   subtasks: SubTaskDto[];
+  comments: CommentDto[];
   recurrence?: TaskRecurrenceDto;
   gitInfo?: GitInfoDto;
   createdAt: string;
@@ -29,6 +30,15 @@ export interface SubTaskDto {
   title: string;
   completed: boolean;
   createdAt: string;
+}
+
+export interface CommentDto {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TaskRecurrenceDto {
@@ -62,6 +72,9 @@ export interface CreateTaskRequest {
   projectId?: string;
   assignedUserId?: string;
   tags?: string[];
+  subtasks?: SubTaskDto[];
+  recurrence?: TaskRecurrenceDto;
+  gitInfo?: GitInfoDto;
 }
 
 export const calendarService = {
@@ -69,6 +82,15 @@ export const calendarService = {
   async getTasksByMonth(year: number, month: number): Promise<TaskDto[]> {
     try {
       const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/calendar/${year}/${month}`);
+      console.log('🔄 API Response - getTasksByMonth:', {
+        url: `/tasks/calendar/${year}/${month}`,
+        success: response.data.success,
+        taskCount: response.data.data.length,
+        statusBreakdown: response.data.data.reduce((acc, task) => {
+          acc[task.status] = (acc[task.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      });
       return response.data.data;
     } catch (error) {
       console.error('Error fetching tasks by month:', error);
@@ -107,6 +129,16 @@ export const calendarService = {
   async getTodayTasks(): Promise<TaskDto[]> {
     try {
       const response = await api.get<ApiResponse<TaskDto[]>>('/tasks/today');
+      console.log('🔄 API Response - getTodayTasks:', {
+        url: '/tasks/today',
+        success: response.data.success,
+        taskCount: response.data.data.length,
+        statusBreakdown: response.data.data.reduce((acc, task) => {
+          acc[task.status] = (acc[task.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        allStatuses: [...new Set(response.data.data.map(t => t.status))]
+      });
       return response.data.data;
     } catch (error) {
       console.error('Error fetching today\'s tasks:', error);
@@ -165,6 +197,78 @@ export const calendarService = {
       return response.data.data;
     } catch (error) {
       console.error('Error deleting task:', error);
+      throw error;
+    }
+  },
+
+  // Subtask Management
+  async addSubtask(taskId: string, title: string): Promise<SubTaskDto> {
+    try {
+      const response = await api.post<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks`, { title });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+      throw error;
+    }
+  },
+
+  async updateSubtask(taskId: string, subtaskId: string, title: string, completed: boolean): Promise<SubTaskDto> {
+    try {
+      const response = await api.put<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks/${subtaskId}`, { title, completed });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+      throw error;
+    }
+  },
+
+  async toggleSubtask(taskId: string, subtaskId: string): Promise<SubTaskDto> {
+    try {
+      const response = await api.patch<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks/${subtaskId}/toggle`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error toggling subtask:', error);
+      throw error;
+    }
+  },
+
+  async deleteSubtask(taskId: string, subtaskId: string): Promise<boolean> {
+    try {
+      const response = await api.delete<ApiResponse<boolean>>(`/tasks/${taskId}/subtasks/${subtaskId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error deleting subtask:', error);
+      throw error;
+    }
+  },
+
+  // Comment Management
+  async addComment(taskId: string, content: string): Promise<CommentDto> {
+    try {
+      const response = await api.post<ApiResponse<CommentDto>>(`/tasks/${taskId}/comments`, { content });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  },
+
+  async updateComment(taskId: string, commentId: string, content: string): Promise<CommentDto> {
+    try {
+      const response = await api.put<ApiResponse<CommentDto>>(`/tasks/${taskId}/comments/${commentId}`, { content });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      throw error;
+    }
+  },
+
+  async deleteComment(taskId: string, commentId: string): Promise<boolean> {
+    try {
+      const response = await api.delete<ApiResponse<boolean>>(`/tasks/${taskId}/comments/${commentId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error deleting comment:', error);
       throw error;
     }
   }
