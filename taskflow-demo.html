@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Your Second Brain</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f6f8fa;
+            --bg-tertiary: #e1e4e8;
+            --text-primary: #24292f;
+            --text-secondary: #57606a;
+            --text-tertiary: #8c959f;
+            --accent: #0969da;
+            --accent-hover: #0860ca;
+            --border: #d0d7de;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --success: #1a7f37;
+            --warning: #bf8700;
+            --danger: #cf222e;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-tertiary: #6e7681;
+            --accent: #58a6ff;
+            --accent-hover: #79b8ff;
+            --border: #30363d;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .nav-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .cmd-key {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: var(--text-tertiary);
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .view-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .view-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Task List */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            border-color: var(--accent);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .task-checkbox:hover {
+            border-color: var(--accent);
+        }
+
+        .task-checkbox.checked {
+            background: var(--accent);
+            border-color: var(--accent);
+            position: relative;
+        }
+
+        .task-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .task-tag {
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .task-priority {
+            width: 4px;
+            height: 100%;
+            background: var(--warning);
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        .task-priority.high {
+            background: var(--danger);
+        }
+
+        .task-priority.low {
+            background: var(--success);
+        }
+
+        /* Quick Add */
+        .quick-add {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--accent);
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px var(--shadow);
+            transition: all 0.2s ease;
+        }
+
+        .quick-add:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px var(--shadow);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px var(--shadow);
+        }
+
+        .modal-header {
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            padding: 24px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .right-panel.active {
+            display: block;
+        }
+
+        .calendar-widget {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .calendar-header {
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .time-blocks {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .time-block {
+            display: flex;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .time-label {
+            color: var(--text-secondary);
+            width: 50px;
+        }
+
+        .time-task {
+            flex: 1;
+            background: var(--accent);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: relative;
+            width: 40px;
+            height: 20px;
+        }
+
+        .theme-toggle input {
+            display: none;
+        }
+
+        .theme-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .theme-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        .theme-toggle input:checked + .theme-toggle-slider {
+            background-color: var(--accent);
+        }
+
+        .theme-toggle input:checked + .theme-toggle-slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <span>📋</span> TaskFlow
+            </div>
+            
+            <nav>
+                <div class="nav-item active" onclick="showView('today')">
+                    <span class="nav-icon">📅</span>
+                    <span>Today</span>
+                </div>
+                <div class="nav-item" onclick="showView('upcoming')">
+                    <span class="nav-icon">📆</span>
+                    <span>Upcoming</span>
+                </div>
+                <div class="nav-item" onclick="showView('projects')">
+                    <span class="nav-icon">📁</span>
+                    <span>Projects</span>
+                </div>
+                <div class="nav-item" onclick="showView('wiki')">
+                    <span class="nav-icon">📚</span>
+                    <span>Wiki</span>
+                </div>
+                <div class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>Team</span>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="search-bar">
+                    <input type="text" class="search-input" placeholder="Search or use quick actions...">
+                    <span class="cmd-key">⌘K</span>
+                </div>
+                
+                <div class="header-actions">
+                    <button class="btn-icon" onclick="togglePanel()">
+                        <span>📊</span>
+                    </button>
+                    <button class="btn-icon">
+                        <span>🔔</span>
+                    </button>
+                    <label class="theme-toggle">
+                        <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                        <span class="theme-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div id="todayView">
+                    <div class="view-header">
+                        <h1 class="view-title">Today</h1>
+                        <div class="view-actions">
+                            <button class="btn">Filter</button>
+                            <button class="btn btn-primary" onclick="openModal()">Add Task</button>
+                        </div>
+                    </div>
+
+                    <div class="task-list" id="taskList">
+                        <div class="task-item">
+                            <div class="task-priority high"></div>
+                            <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                            <div class="task-content">
+                                <div class="task-title">Fix authentication bug in login flow</div>
+                                <div class="task-meta">
+                                    <span>🕒 2:00 PM</span>
+                                    <span>⏱️ 2h</span>
+                                    <span class="task-tag">#urgent</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="task-item">
+                            <div class="task-priority"></div>
+                            <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                            <div class="task-content">
+                                <div class="task-title">Code review PR #234</div>
+                                <div class="task-meta">
+                                    <span>🕒 3:30 PM</span>
+                                    <span>⏱️ 30min</span>
+                                    <span class="task-tag">#codereview</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="task-item">
+                            <div class="task-priority low"></div>
+                            <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                            <div class="task-content">
+                                <div class="task-title">Update project documentation</div>
+                                <div class="task-meta">
+                                    <span>🕒 4:00 PM</span>
+                                    <span>⏱️ 1h</span>
+                                    <span class="task-tag">#docs</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="task-item">
+                            <div class="task-checkbox checked" onclick="toggleTask(this)"></div>
+                            <div class="task-content" style="opacity: 0.6;">
+                                <div class="task-title" style="text-decoration: line-through;">Team standup meeting</div>
+                                <div class="task-meta">
+                                    <span>🕒 9:00 AM</span>
+                                    <span>⏱️ 15min</span>
+                                    <span class="task-tag">#meeting</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="wikiView" style="display: none;">
+                    <div class="view-header">
+                        <h1 class="view-title">Wiki</h1>
+                        <div class="view-actions">
+                            <button class="btn">Search</button>
+                            <button class="btn btn-primary">New Page</button>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 24px; margin-top: 16px;">
+                        <h2 style="margin-bottom: 16px;">Recent Pages</h2>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; cursor: pointer;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">Authentication Architecture</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Updated 2 hours ago</div>
+                            </div>
+                            <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; cursor: pointer;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">API Documentation</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Updated yesterday</div>
+                            </div>
+                            <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; cursor: pointer;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">Deployment Guide</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Updated 3 days ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel" id="rightPanel">
+            <div class="calendar-widget">
+                <div class="calendar-header">Today's Schedule</div>
+                <div class="time-blocks">
+                    <div class="time-block">
+                        <span class="time-label">9:00</span>
+                        <div class="time-task">Team Standup</div>
+                    </div>
+                    <div class="time-block">
+                        <span class="time-label">10:00</span>
+                        <div style="flex: 1; color: var(--text-secondary);">Focus Time</div>
+                    </div>
+                    <div class="time-block">
+                        <span class="time-label">14:00</span>
+                        <div class="time-task">Fix Auth Bug</div>
+                    </div>
+                    <div class="time-block">
+                        <span class="time-label">15:30</span>
+                        <div class="time-task">Code Review</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-primary); border-radius: 8px; padding: 16px;">
+                <h3 style="margin-bottom: 12px; font-size: 16px;">Quick Stats</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Tasks Today</span>
+                        <span>4</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Completed</span>
+                        <span>1</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Focus Time</span>
+                        <span>5h 30m</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Add Button -->
+    <button class="quick-add" onclick="openModal()">+</button>
+
+    <!-- Add Task Modal -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New Task</h2>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Task Title</label>
+                <input type="text" class="input" id="taskTitle" placeholder="What needs to be done?">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Natural Language Input</label>
+                <input type="text" class="input" placeholder="e.g., Fix bug tomorrow 2pm #urgent">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Project</label>
+                <select class="input">
+                    <option>TaskFlow Development</option>
+                    <option>Personal</option>
+                    <option>Team Tasks</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="addTask()">Add Task</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const isChecked = document.getElementById('themeToggle').checked;
+            document.documentElement.setAttribute('data-theme', isChecked ? 'dark' : 'light');
+            localStorage.setItem('theme', isChecked ? 'dark' : 'light');
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        document.getElementById('themeToggle').checked = savedTheme === 'dark';
+
+        // Toggle task completion
+        function toggleTask(checkbox) {
+            checkbox.classList.toggle('checked');
+            const taskItem = checkbox.closest('.task-item');
+            const taskContent = taskItem.querySelector('.task-content');
+            const taskTitle = taskItem.querySelector('.task-title');
+            
+            if (checkbox.classList.contains('checked')) {
+                taskContent.style.opacity = '0.6';
+                taskTitle.style.textDecoration = 'line-through';
+            } else {
+                taskContent.style.opacity = '1';
+                taskTitle.style.textDecoration = 'none';
+            }
+        }
+
+        // Modal functions
+        function openModal() {
+            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('taskTitle').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('taskModal').classList.remove('active');
+        }
+
+        function addTask() {
+            const title = document.getElementById('taskTitle').value;
+            if (title) {
+                const taskList = document.getElementById('taskList');
+                const newTask = document.createElement('div');
+                newTask.className = 'task-item';
+                newTask.innerHTML = `
+                    <div class="task-priority"></div>
+                    <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                    <div class="task-content">
+                        <div class="task-title">${title}</div>
+                        <div class="task-meta">
+                            <span>🕒 Now</span>
+                            <span class="task-tag">#new</span>
+                        </div>
+                    </div>
+                `;
+                taskList.insertBefore(newTask, taskList.firstChild);
+                closeModal();
+                document.getElementById('taskTitle').value = '';
+            }
+        }
+
+        // Toggle right panel
+        function togglePanel() {
+            document.getElementById('rightPanel').classList.toggle('active');
+        }
+
+        // View switching
+        function showView(view) {
+            // Hide all views
+            document.getElementById('todayView').style.display = 'none';
+            document.getElementById('wikiView').style.display = 'none';
+            
+            // Show selected view
+            if (view === 'today') {
+                document.getElementById('todayView').style.display = 'block';
+            } else if (view === 'wiki') {
+                document.getElementById('wikiView').style.display = 'block';
+            }
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.nav-item').classList.add('active');
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('taskModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Cmd/Ctrl + K for search
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                document.querySelector('.search-input').focus();
+            }
+            
+            // Cmd/Ctrl + N for new task
+            if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+                e.preventDefault();
+                openModal();
+            }
+            
+            // Escape to close modal
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
