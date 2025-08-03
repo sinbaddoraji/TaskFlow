@@ -1,0 +1,196 @@
+name: Build and Release Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release'
+        required: false
+        default: 'latest'
+
+env:
+  IMAGE_NAME: taskflow-api
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build Docker image for multiple platforms
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./TaskFlow.Api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/taskflow-api.tar
+
+      - name: Compress Docker image
+        run: |
+          gzip /tmp/taskflow-api.tar
+          mv /tmp/taskflow-api.tar.gz /tmp/taskflow-api-${{ github.sha }}.tar.gz
+
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskflow-api-docker-${{ github.sha }}
+          path: /tmp/taskflow-api-${{ github.sha }}.tar.gz
+          retention-days: 7
+
+      - name: Create deployment instructions
+        run: |
+          cat > /tmp/DEPLOYMENT.md << 'EOF'
+          # TaskFlow API Deployment Instructions
+          
+          ## Docker Image Information
+          - **Image**: taskflow-api:latest
+          - **Architecture**: linux/amd64 (x86_64)
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Git SHA**: ${{ github.sha }}
+          - **Git Ref**: ${{ github.ref }}
+          
+          ## Deployment Steps
+          
+          1. **Download the artifact** from GitHub Actions artifacts
+          
+          2. **Transfer to your VPS**:
+          ```bash
+          scp taskflow-api-${{ github.sha }}.tar.gz user@217.154.44.219:/home/user/
+          ```
+          
+          3. **On your VPS, extract and load the image**:
+          ```bash
+          gunzip taskflow-api-${{ github.sha }}.tar.gz
+          docker load -i taskflow-api-${{ github.sha }}.tar
+          ```
+          
+          4. **Run with docker-compose** (recommended):
+          ```bash
+          docker-compose up -d
+          ```
+          
+          Or **run manually**:
+          ```bash
+          docker run -d \
+            --name taskflow-api \
+            -p 8080:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Production \
+            -e DatabaseSettings__ConnectionString='mongodb://mongodb:27017' \
+            -e Jwt__Secret='your-secret-key' \
+            -e Jwt__Issuer='TaskFlowAPI' \
+            -e Jwt__Audience='TaskFlowClient' \
+            taskflow-api:latest
+          ```
+          
+          ## Environment Variables Required
+          - `DatabaseSettings__ConnectionString`
+          - `DatabaseSettings__DatabaseName` 
+          - `Jwt__Secret`
+          - `Jwt__Issuer`
+          - `Jwt__Audience`
+          - `Cors__AllowedOrigins__0` (Your Vercel app URL)
+          
+          ## Health Check
+          ```bash
+          curl http://localhost:8080/health
+          ```
+          EOF
+
+      - name: Upload deployment instructions
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-instructions-${{ github.sha }}
+          path: /tmp/DEPLOYMENT.md
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: taskflow-api-docker-${{ github.sha }}
+          path: /tmp
+
+      - name: Download deployment instructions
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-instructions-${{ github.sha }}
+          path: /tmp
+
+      - name: Set release tag
+        id: set_tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ -n "${{ github.event.inputs.tag_name }}" ]]; then
+              echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+            else
+              echo "tag=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.set_tag.outputs.tag }}
+          name: TaskFlow API ${{ steps.set_tag.outputs.tag }}
+          body_path: /tmp/DEPLOYMENT.md
+          draft: false
+          prerelease: false
+          files: |
+            /tmp/taskflow-api-${{ github.sha }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

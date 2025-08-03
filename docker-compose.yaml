@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: taskflow-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeThisPassword123!}
+      MONGO_INITDB_DATABASE: TaskFlowDb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  taskflow-api:
+    image: taskflow-api:latest
+    container_name: taskflow-api
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:8080"
+      
+      # Database Configuration
+      DatabaseSettings__ConnectionString: "mongodb://admin:${MONGO_ROOT_PASSWORD:-changeThisPassword123!}@mongodb:27017"
+      DatabaseSettings__DatabaseName: "TaskFlowDb"
+      
+      # JWT Configuration
+      Jwt__Secret: ${JWT_SECRET:-your-super-secret-jwt-key-minimum-32-characters-long!}
+      Jwt__Issuer: ${JWT_ISSUER:-TaskFlowAPI}
+      Jwt__Audience: ${JWT_AUDIENCE:-TaskFlowClient}
+      Jwt__ExpirationInMinutes: ${JWT_EXPIRATION:-1440}
+      
+      # CORS Configuration (update with your actual client URL)
+      Cors__AllowedOrigins__0: ${CLIENT_URL:-https://your-app.vercel.app}
+      Cors__AllowedOrigins__1: "http://localhost:5173"
+      Cors__AllowedOrigins__2: "http://localhost:3000"
+      
+      # Logging
+      Serilog__MinimumLevel__Default: Information
+      Serilog__MinimumLevel__Override__Microsoft: Warning
+      Serilog__MinimumLevel__Override__System: Warning
+      Serilog__WriteTo__0__Name: Console
+      Serilog__WriteTo__1__Name: File
+      Serilog__WriteTo__1__Args__path: "/app/logs/log-.txt"
+      Serilog__WriteTo__1__Args__rollingInterval: Day
+      Serilog__WriteTo__1__Args__retainedFileCountLimit: 30
+      
+    ports:
+      - "8080:8080"
+    volumes:
+      - api_logs:/app/logs
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  api_logs:
+    driver: local
+
+networks:
+  taskflow-network:
+    driver: bridge

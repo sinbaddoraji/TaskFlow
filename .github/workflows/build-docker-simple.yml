@@ -1,0 +1,84 @@
+name: Build Docker Image (Simple)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+
+jobs:
+  build:
+    name: Build and Export Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for x86_64
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -t taskflow-api:${{ github.event.inputs.image_tag }} \
+            -f TaskFlow.Api/Dockerfile \
+            --output type=docker,dest=taskflow-api.tar \
+            .
+
+      - name: Compress Docker image
+        run: |
+          gzip taskflow-api.tar
+          echo "Image compressed to taskflow-api.tar.gz"
+          ls -lh taskflow-api.tar.gz
+
+      - name: Generate deployment script
+        run: |
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          
+          # TaskFlow API Deployment Script
+          # Generated on: $(date)
+          
+          set -e
+          
+          echo "Loading Docker image..."
+          gunzip -c taskflow-api.tar.gz | docker load
+          
+          echo "Docker image loaded successfully!"
+          echo ""
+          echo "You can now run the container using docker-compose or:"
+          echo "docker run -d --name taskflow-api -p 8080:8080 taskflow-api:${{ github.event.inputs.image_tag }}"
+          EOF
+          
+          chmod +x deploy.sh
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskflow-api-docker-image
+          path: |
+            taskflow-api.tar.gz
+            deploy.sh
+            docker-compose.yaml
+          retention-days: 30
+
+      - name: Display download instructions
+        run: |
+          echo "================================================"
+          echo "Docker image built successfully!"
+          echo "================================================"
+          echo ""
+          echo "To download the Docker image:"
+          echo "1. Go to the Actions tab in your GitHub repository"
+          echo "2. Click on this workflow run"
+          echo "3. Download the 'taskflow-api-docker-image' artifact"
+          echo "4. Extract the ZIP file"
+          echo "5. Transfer taskflow-api.tar.gz to your VPS"
+          echo "6. Run ./deploy.sh on your VPS"
+          echo ""
+          echo "Image size: $(ls -lh taskflow-api.tar.gz | awk '{print $5}')"
+          echo "================================================"
