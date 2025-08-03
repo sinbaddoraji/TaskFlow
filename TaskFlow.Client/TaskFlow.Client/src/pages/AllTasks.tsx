@@ -15,14 +15,18 @@ import {
   Calendar,
   Clock,
   Tag,
-  Briefcase
+  Briefcase,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import AddTaskModal from '../components/AddTaskModal';
+import TaskRowExpanded from '../components/TaskRowExpanded';
 import { taskService, type TaskQueryParams } from '../services/taskService';
 import { type TaskDto } from '../services/calendarService';
 import { projectService, type Project } from '../services/projectService';
+import { useAuth } from '../hooks/useAuth';
 type SortField = 'title' | 'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt';
 type SortDirection = 'asc' | 'desc';
 
@@ -35,11 +39,13 @@ interface TaskFilters {
 }
 
 export default function AllTasks() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskDto | null>(null);
   
@@ -282,6 +288,22 @@ export default function AllTasks() {
   const handleCloseModal = () => {
     setIsAddTaskModalOpen(false);
     setEditTask(null);
+  };
+
+  const handleToggleExpand = (taskId: string) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTasks(newExpanded);
+  };
+
+  const handleTaskUpdateFromExpanded = (updatedTask: TaskDto) => {
+    setTasks(prevTasks =>
+      prevTasks.map(t => (t.id === updatedTask.id ? updatedTask : t))
+    );
   };
 
   const getPriorityColor = (priority: string) => {
@@ -557,21 +579,37 @@ export default function AllTasks() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {sortedAndPaginatedTasks.tasks.map((task) => (
-                      <tr key={task.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleTaskSelect(task.id)}
-                            className="flex items-center justify-center w-5 h-5"
-                          >
-                            {selectedTasks.has(task.id) ? (
-                              <CheckSquare className="h-4 w-4 text-indigo-600" />
-                            ) : (
-                              <Square className="h-4 w-4 text-gray-400" />
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
+                    {sortedAndPaginatedTasks.tasks.map((task) => {
+                      const isExpanded = expandedTasks.has(task.id);
+                      return (
+                        <>
+                          <tr key={task.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleExpand(task.id)}
+                                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                  title={isExpanded ? "Collapse" : "Expand"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 text-gray-600" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-gray-600" />
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => handleTaskSelect(task.id)}
+                                  className="flex items-center justify-center w-5 h-5"
+                                >
+                                  {selectedTasks.has(task.id) ? (
+                                    <CheckSquare className="h-4 w-4 text-indigo-600" />
+                                  ) : (
+                                    <Square className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
                           <div>
                             <div className="font-medium text-gray-900">{task.title}</div>
                             {task.description && (
@@ -664,7 +702,17 @@ export default function AllTasks() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      {isExpanded && (
+                        <TaskRowExpanded
+                          key={`${task.id}-expanded`}
+                          task={task}
+                          currentUserId={user?.id || ''}
+                          onTaskUpdate={handleTaskUpdateFromExpanded}
+                        />
+                      )}
+                    </>
+                  );
+                })}
                   </tbody>
                 </table>
               </div>
