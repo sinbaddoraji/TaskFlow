@@ -57,12 +57,12 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix={{branch}}-
 
-      - name: Build Docker image for multiple platforms
+      - name: Build Docker image for linux/amd64
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./TaskFlow.Api/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
