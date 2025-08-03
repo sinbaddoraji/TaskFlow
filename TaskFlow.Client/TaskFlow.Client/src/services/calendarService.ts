@@ -125,6 +125,29 @@ export const calendarService = {
     }
   },
 
+  // Get tasks for a specific date
+  async getTasksByDate(date: Date): Promise<TaskDto[]> {
+    try {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/date/${formattedDate}`);
+      console.log('🔄 API Response - getTasksByDate:', {
+        url: `/tasks/date/${formattedDate}`,
+        date: formattedDate,
+        success: response.data.success,
+        taskCount: response.data.data.length,
+        statusBreakdown: response.data.data.reduce((acc, task) => {
+          acc[task.status] = (acc[task.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        allStatuses: [...new Set(response.data.data.map(t => t.status))]
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching tasks by date:', error);
+      throw error;
+    }
+  },
+
   // Get today's tasks
   async getTodayTasks(): Promise<TaskDto[]> {
     try {

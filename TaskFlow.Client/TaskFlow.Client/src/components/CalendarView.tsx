@@ -16,7 +16,7 @@ interface CalendarViewProps {
   currentUserId?: string;
 }
 
-export type CalendarViewType = 'month' | 'week' | 'today';
+export type CalendarViewType = 'month' | 'week' | 'day';
 
 export default function CalendarView({ 
   onDateSelect, 
@@ -55,8 +55,8 @@ export default function CalendarView({
           fetchedTasks = await calendarService.getTasksByWeek(weekStart);
           break;
         }
-        case 'today':
-          fetchedTasks = await calendarService.getTodayTasks();
+        case 'day':
+          fetchedTasks = await calendarService.getTasksByDate(currentDate);
           break;
       }
       
@@ -308,20 +308,23 @@ export default function CalendarView({
     return <div className="flex border border-gray-200">{weekDays}</div>;
   };
 
-  const renderTodayView = () => {
-    const today = new Date();
-    const todayTasks = getTasksForDate(today);
+  const renderDayView = () => {
+    const selectedDay = currentDate;
+    const dayTasks = getTasksForDate(selectedDay);
+    const isToday = isSameDay(selectedDay, new Date());
 
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Today</h2>
-              <p className="text-gray-600">{format(today, 'EEEE, MMMM d, yyyy')}</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {isToday ? 'Today' : 'Day'}
+              </h2>
+              <p className="text-gray-600">{format(selectedDay, 'EEEE, MMMM d, yyyy')}</p>
             </div>
             <button
-              onClick={() => handleAddTaskClick(today)}
+              onClick={() => handleAddTaskClick(selectedDay)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -333,14 +336,14 @@ export default function CalendarView({
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>
-          ) : todayTasks.length === 0 ? (
+          ) : dayTasks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No tasks scheduled for today</p>
+              <p>No tasks scheduled for {isToday ? 'today' : 'this day'}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {todayTasks.map((task) => (
+              {dayTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -367,7 +370,7 @@ export default function CalendarView({
         const weekEnd = endOfWeek(currentDate);
         return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
       }
-      case 'today':
+      case 'day':
         return format(currentDate, 'EEEE, MMMM d, yyyy');
       default:
         return '';
@@ -399,7 +402,7 @@ export default function CalendarView({
 
           {/* View Type Selector */}
           <div className="flex bg-gray-100 rounded-lg p-1">
-            {(['today', 'week', 'month'] as CalendarViewType[]).map((type) => (
+            {(['day', 'week', 'month'] as CalendarViewType[]).map((type) => (
               <button
                 key={type}
                 onClick={() => setViewType(type)}
@@ -417,8 +420,8 @@ export default function CalendarView({
       </div>
 
       {/* Calendar Content */}
-      <div className={viewType === 'today' ? 'p-4' : ''}>
-        {loading && viewType !== 'today' ? (
+      <div className={viewType === 'day' ? 'p-4' : ''}>
+        {loading && viewType !== 'day' ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
@@ -426,7 +429,7 @@ export default function CalendarView({
           <>
             {viewType === 'month' && renderMonthView()}
             {viewType === 'week' && renderWeekView()}
-            {viewType === 'today' && renderTodayView()}
+            {viewType === 'day' && renderDayView()}
           </>
         )}
       </div>
