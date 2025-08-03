@@ -27,6 +27,7 @@ interface KanbanBoardProps {
   onAddTask: () => void;
   onTaskUpdate?: (updatedTask: TaskDto) => void;
   currentUserId?: string;
+  visibleStatuses?: ColumnId[];
 }
 
 type ColumnId = 'Pending' | 'InProgress' | 'Completed' | 'OnHold' | 'Cancelled';
@@ -100,6 +101,7 @@ export default function KanbanBoard({
   onAddTask,
   onTaskUpdate,
   currentUserId,
+  visibleStatuses = ['Pending', 'InProgress', 'Completed', 'OnHold', 'Cancelled'],
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   
@@ -172,6 +174,17 @@ export default function KanbanBoard({
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
+  const visibleColumns = columns.filter(column => visibleStatuses.includes(column.id));
+
+  const getGridClass = () => {
+    const visibleCount = visibleColumns.length;
+    if (visibleCount === 1) return "grid grid-cols-1 gap-4 pb-4";
+    if (visibleCount === 2) return "grid grid-cols-1 md:grid-cols-2 gap-4 pb-4";
+    if (visibleCount === 3) return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4";
+    if (visibleCount === 4) return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-4";
+    return "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pb-4";
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -179,8 +192,17 @@ export default function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pb-4">
-        {columns.map(column => (
+      {visibleColumns.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center">
+            <Circle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No status types selected</h3>
+            <p className="text-gray-500 mb-4">Choose which status types you'd like to see using the filter above.</p>
+          </div>
+        </div>
+      ) : (
+        <div className={`${getGridClass()} transition-all duration-300 ease-in-out`}>
+          {visibleColumns.map(column => (
           <ColumnDropZone key={column.id} column={column}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
@@ -235,8 +257,9 @@ export default function KanbanBoard({
               </div>
             </SortableContext>
           </ColumnDropZone>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <DragOverlay>
         {activeTask ? (

@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import KanbanBoard from '../components/KanbanBoard';
 import AddTaskModal from '../components/AddTaskModal';
+import StatusFilter from '../components/StatusFilter';
 import { calendarService, type TaskDto } from '../services/calendarService';
 import { useAuth } from '../hooks/useAuth';
+
+type ColumnId = 'Pending' | 'InProgress' | 'Completed' | 'OnHold' | 'Cancelled';
 
 export default function Today() {
   const { user } = useAuth();
@@ -14,6 +17,10 @@ export default function Today() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [visibleStatuses, setVisibleStatuses] = useState<ColumnId[]>(() => {
+    const saved = localStorage.getItem('today-visible-statuses');
+    return saved ? JSON.parse(saved) : ['Pending', 'InProgress', 'Completed', 'OnHold', 'Cancelled'];
+  });
 
   const fetchTasks = async () => {
     try {
@@ -94,6 +101,47 @@ export default function Today() {
     setEditTask(null);
   };
 
+  const taskCounts = useMemo(() => {
+    const counts: Record<ColumnId, number> = {
+      'Pending': 0,
+      'InProgress': 0,
+      'Completed': 0,
+      'OnHold': 0,
+      'Cancelled': 0,
+    };
+
+    tasks.forEach(task => {
+      const status = task.status as ColumnId;
+      if (status in counts) {
+        counts[status]++;
+      } else {
+        counts['Pending']++;
+      }
+    });
+
+    return counts;
+  }, [tasks]);
+
+  const handleStatusToggle = (status: ColumnId) => {
+    const newVisibleStatuses = visibleStatuses.includes(status)
+      ? visibleStatuses.filter(s => s !== status)
+      : [...visibleStatuses, status];
+    
+    setVisibleStatuses(newVisibleStatuses);
+    localStorage.setItem('today-visible-statuses', JSON.stringify(newVisibleStatuses));
+  };
+
+  const handleSelectAllStatuses = () => {
+    const allStatuses: ColumnId[] = ['Pending', 'InProgress', 'Completed', 'OnHold', 'Cancelled'];
+    setVisibleStatuses(allStatuses);
+    localStorage.setItem('today-visible-statuses', JSON.stringify(allStatuses));
+  };
+
+  const handleClearAllStatuses = () => {
+    setVisibleStatuses([]);
+    localStorage.setItem('today-visible-statuses', JSON.stringify([]));
+  };
+
   return (
     <Layout>
       <div className="p-6">
@@ -122,6 +170,16 @@ export default function Today() {
           </div>
         )}
 
+        {!loading && (
+          <StatusFilter
+            visibleStatuses={visibleStatuses}
+            onStatusToggle={handleStatusToggle}
+            onSelectAll={handleSelectAllStatuses}
+            onClearAll={handleClearAllStatuses}
+            taskCounts={taskCounts}
+          />
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -139,6 +197,7 @@ export default function Today() {
             onAddTask={handleAddTask}
             onTaskUpdate={handleTaskUpdate}
             currentUserId={user?.id}
+            visibleStatuses={visibleStatuses}
           />
         )}
 
