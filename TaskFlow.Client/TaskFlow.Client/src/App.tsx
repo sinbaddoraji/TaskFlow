@@ -7,6 +7,7 @@ import RegisterPage from "./pages/authentication/register";
 import Dashboard from "./pages/Dashboard";
 import Today from "./pages/Today";
 import AllTasks from "./pages/AllTasks";
+import Projects from "./pages/Projects";
 import ProfilePage from "./pages/Profile";
 import ChangePasswordPage from "./pages/ChangePassword";
 import SettingsPage from "./pages/Settings";
@@ -48,6 +49,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AllTasks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <Projects />
               </ProtectedRoute>
             }
           />

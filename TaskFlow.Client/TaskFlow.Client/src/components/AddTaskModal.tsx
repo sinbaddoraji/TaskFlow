@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, Clock } from 'lucide-react';
+import { X, Calendar, Clock, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { calendarService, type CreateTaskRequest, type TaskDto } from '../services/calendarService';
 import { type UpdateTaskRequest } from '../services/taskService';
+import { projectService, type Project } from '../services/projectService';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -25,8 +26,25 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
     assignedUserId: undefined,
     projectId: undefined,
   });
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch projects when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchProjects = async () => {
+        try {
+          const fetchedProjects = await projectService.getProjects();
+          setProjects(fetchedProjects);
+        } catch (err) {
+          console.error('Error fetching projects:', err);
+        }
+      };
+
+      fetchProjects();
+    }
+  }, [isOpen]);
 
   // Initialize form data when modal opens or edit task changes
   useEffect(() => {
@@ -231,6 +249,28 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
+            </div>
+
+            {/* Project */}
+            <div>
+              <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-1">
+                <Briefcase className="inline h-4 w-4 mr-1" />
+                Project
+              </label>
+              <select
+                id="projectId"
+                name="projectId"
+                value={formData.projectId || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No Project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Due Date */}

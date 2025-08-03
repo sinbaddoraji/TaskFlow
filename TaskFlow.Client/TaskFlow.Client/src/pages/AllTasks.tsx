@@ -22,6 +22,7 @@ import Layout from '../components/Layout';
 import AddTaskModal from '../components/AddTaskModal';
 import { taskService, type TaskQueryParams } from '../services/taskService';
 import { type TaskDto } from '../services/calendarService';
+import { projectService, type Project } from '../services/projectService';
 type SortField = 'title' | 'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt';
 type SortDirection = 'asc' | 'desc';
 
@@ -35,6 +36,7 @@ interface TaskFilters {
 
 export default function AllTasks() {
   const [tasks, setTasks] = useState<TaskDto[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -65,6 +67,20 @@ export default function AllTasks() {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Fetch projects on component mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const fetchedProjects = await projectService.getProjects();
+        setProjects(fetchedProjects);
+      } catch (err) {
+        console.error('Error fetching projects:', err);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -361,7 +377,7 @@ export default function AllTasks() {
         {/* Filters Panel */}
         {showFilters && (
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
@@ -390,6 +406,22 @@ export default function AllTasks() {
                   <option value="High">High</option>
                   <option value="Medium">Medium</option>
                   <option value="Low">Low</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+                <select
+                  value={filters.projectId || ''}
+                  onChange={(e) => setFilters({ ...filters, projectId: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Projects</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               

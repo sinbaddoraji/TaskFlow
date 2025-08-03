@@ -66,5 +66,33 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
             .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
+        // Project mappings
+        CreateMap<Project, ProjectDto>()
+            .ForMember(dest => dest.TaskCount, opt => opt.Ignore()) // Will be calculated separately
+            .ForMember(dest => dest.OwnerName, opt => opt.Ignore()); // Will be populated separately
+
+        CreateMap<ProjectMember, ProjectMemberDto>()
+            .ForMember(dest => dest.UserName, opt => opt.Ignore())
+            .ForMember(dest => dest.UserEmail, opt => opt.Ignore());
+
+        CreateMap<ProjectSettings, ProjectSettingsDto>();
+
+        CreateMap<CreateProjectRequest, Project>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.OwnerId, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.Members, opt => opt.MapFrom(src => new List<ProjectMember>()));
+
+        CreateMap<UpdateProjectRequest, Project>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.OwnerId, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.Members, opt => opt.Ignore())
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
+        CreateMap<ProjectSettingsRequest, ProjectSettings>();
+
   }
 }
