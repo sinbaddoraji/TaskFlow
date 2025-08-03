@@ -167,7 +167,7 @@ export default function Today() {
   };
 
   return (
-    <Layout>
+    <Layout onTaskCreated={fetchTasks}>
       <div className="p-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">

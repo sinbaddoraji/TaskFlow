@@ -306,7 +306,7 @@ export default function AllTasks() {
   };
 
   return (
-    <Layout>
+    <Layout onTaskCreated={fetchTasks}>
       <div className="p-6">
         {/* Header */}
         <div className="mb-6">
