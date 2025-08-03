@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Calendar, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { calendarService, type CreateTaskRequest, type TaskDto } from '../services/calendarService';
+import { type UpdateTaskRequest } from '../services/taskService';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
     scheduledTime: '',
     timeEstimateInMinutes: undefined,
     tags: [],
+    assignedUserId: undefined,
+    projectId: undefined,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +42,8 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
           scheduledTime: editTask.scheduledTime ? format(new Date(editTask.scheduledTime), "yyyy-MM-dd'T'HH:mm") : '',
           timeEstimateInMinutes: editTask.timeEstimateInMinutes,
           tags: editTask.tags,
+          assignedUserId: editTask.assignedUserId,
+          projectId: editTask.projectId,
         });
       } else {
         // Creating new task
@@ -52,6 +57,8 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
           scheduledTime: '',
           timeEstimateInMinutes: undefined,
           tags: [],
+          assignedUserId: undefined,
+          projectId: undefined,
         });
       }
       setError(null);
@@ -87,7 +94,20 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
       };
 
       if (editTask) {
-        await calendarService.updateTask(editTask.id, taskData);
+        // Use UpdateTaskRequest for edits to preserve fields like assignedUserId
+        const updateData: UpdateTaskRequest = {
+          title: taskData.title,
+          description: taskData.description,
+          priority: taskData.priority,
+          status: taskData.status,
+          dueDate: taskData.dueDate,
+          scheduledTime: taskData.scheduledTime,
+          timeEstimateInMinutes: taskData.timeEstimateInMinutes,
+          tags: taskData.tags,
+          assignedUserId: taskData.assignedUserId,
+          projectId: taskData.projectId,
+        };
+        await calendarService.updateTask(editTask.id, updateData);
       } else {
         await calendarService.createTask(taskData);
       }
@@ -95,8 +115,17 @@ export default function AddTaskModal({ isOpen, onClose, selectedDate, editTask, 
       onTaskSaved();
       onClose();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      const errorMessage = error?.response?.data?.message || 'An error occurred while saving the task';
+      console.error('Task save error:', err);
+      
+      let errorMessage = 'An error occurred while saving the task';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        const error = err as { response?: { data?: { message?: string } }; message?: string };
+        errorMessage = error?.response?.data?.message || error?.message || errorMessage;
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);

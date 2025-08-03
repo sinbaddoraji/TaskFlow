@@ -12,27 +12,13 @@ namespace TaskFlow.Api.Controllers;
 
 [Authorize]
 [Route("api/v1/[controller]")]
-public class TasksController : BaseController
+public class TasksController(
+    ITaskRepository taskRepository,
+    IUserRepository userRepository,
+    IMapper mapper,
+    ILogger<TasksController> logger)
+    : BaseController(logger)
 {
-    private readonly ITaskRepository _taskRepository;
-    private readonly IProjectRepository _projectRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
-
-    public TasksController(
-        ITaskRepository taskRepository,
-        IProjectRepository projectRepository,
-        IUserRepository userRepository,
-        IMapper mapper,
-        ILogger<TasksController> logger)
-        : base(logger)
-    {
-        _taskRepository = taskRepository;
-        _projectRepository = projectRepository;
-        _userRepository = userRepository;
-        _mapper = mapper;
-    }
-
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PaginatedResponse<TaskDto>>>> GetTasks(
         [FromQuery] int page = 1,
@@ -53,20 +39,20 @@ public class TasksController : BaseController
 
             if (!string.IsNullOrEmpty(search))
             {
-                tasks = await _taskRepository.SearchTasksAsync(userId, search);
+                tasks = await taskRepository.SearchTasksAsync(userId, search);
             }
             else if (!string.IsNullOrEmpty(projectId))
             {
-                tasks = await _taskRepository.GetTasksByProjectIdAsync(projectId);
+                tasks = await taskRepository.GetTasksByProjectIdAsync(projectId);
                 tasks = tasks.Where(t => t.AssignedUserId == userId).ToList();
             }
             else if (tags != null && tags.Length > 0)
             {
-                tasks = await _taskRepository.GetTasksByTagsAsync(userId, tags.ToList());
+                tasks = await taskRepository.GetTasksByTagsAsync(userId, tags.ToList());
             }
             else
             {
-                tasks = await _taskRepository.GetTasksByUserIdAsync(userId);
+                tasks = await taskRepository.GetTasksByUserIdAsync(userId);
             }
 
             // Apply filters
@@ -83,7 +69,7 @@ public class TasksController : BaseController
             // Apply pagination
             var totalCount = tasks.Count;
             var pagedTasks = tasks.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            var taskDtos = _mapper.Map<List<TaskDto>>(pagedTasks);
+            var taskDtos = mapper.Map<List<TaskDto>>(pagedTasks);
 
             var paginatedResponse = new PaginatedResponse<TaskDto>
             {
@@ -111,8 +97,8 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
 
-            var tasks = await _taskRepository.GetTodayTasksAsync(userId);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var tasks = await taskRepository.GetTodayTasksAsync(userId);
+            var taskDtos = mapper.Map<List<TaskDto>>(tasks);
 
             return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
         }
@@ -123,75 +109,7 @@ public class TasksController : BaseController
         }
     }
 
-    [HttpGet("upcoming")]
-    public async Task<ActionResult<ApiResponse<List<TaskDto>>>> GetUpcomingTasks([FromQuery] int days = 7)
-    {
-        try
-        {
-            var userId = GetCurrentUserId();
-            if (userId == null)
-                return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
-
-            var tasks = await _taskRepository.GetUpcomingTasksAsync(userId, days);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
-
-            return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving upcoming tasks");
-            return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving upcoming tasks"));
-        }
-    }
-
-    [HttpGet("timeline")]
-    public async Task<ActionResult<ApiResponse<TaskTimelineDto>>> GetTaskTimeline([FromQuery] int days = 7)
-    {
-        try
-        {
-            var userId = GetCurrentUserId();
-            if (userId == null)
-                return Unauthorized(ApiResponse<TaskTimelineDto>.ErrorResult("User not authenticated"));
-
-            var todayTasks = await _taskRepository.GetTodayTasksAsync(userId);
-            var upcomingTasks = await _taskRepository.GetUpcomingTasksAsync(userId, days);
-
-            var timeline = new TaskTimelineDto
-            {
-                TodayTasks = _mapper.Map<List<TaskDto>>(todayTasks),
-                UpcomingTasks = _mapper.Map<List<TaskDto>>(upcomingTasks)
-            };
-
-            return Ok(ApiResponse<TaskTimelineDto>.SuccessResult(timeline));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving task timeline");
-            return StatusCode(500, ApiResponse<TaskTimelineDto>.ErrorResult("An error occurred while retrieving task timeline"));
-        }
-    }
-
-    [HttpGet("overdue")]
-    public async Task<ActionResult<ApiResponse<List<TaskDto>>>> GetOverdueTasks()
-    {
-        try
-        {
-            var userId = GetCurrentUserId();
-            if (userId == null)
-                return Unauthorized(ApiResponse<List<TaskDto>>.ErrorResult("User not authenticated"));
-
-            var tasks = await _taskRepository.GetOverdueTasksAsync(userId);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
-
-            return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving overdue tasks");
-            return StatusCode(500, ApiResponse<List<TaskDto>>.ErrorResult("An error occurred while retrieving overdue tasks"));
-        }
-    }
-
+   
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<TaskDto>>> GetTask(string id)
     {
@@ -201,14 +119,14 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(id);
+            var task = await taskRepository.GetByIdAsync(id);
             if (task == null)
                 return NotFound(ApiResponse<TaskDto>.ErrorResult("Task not found"));
 
             if (task.AssignedUserId != userId)
                 return Forbid();
 
-            var taskDto = _mapper.Map<TaskDto>(task);
+            var taskDto = mapper.Map<TaskDto>(task);
             return Ok(ApiResponse<TaskDto>.SuccessResult(taskDto));
         }
         catch (Exception ex)
@@ -227,12 +145,12 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
 
-            var task = _mapper.Map<TaskItem>(request);
+            var task = mapper.Map<TaskItem>(request);
             task.AssignedUserId = request.AssignedUserId ?? userId;
             task.CreatedById = userId;
 
-            var createdTask = await _taskRepository.CreateAsync(task);
-            var taskDto = _mapper.Map<TaskDto>(createdTask);
+            var createdTask = await taskRepository.CreateAsync(task);
+            var taskDto = mapper.Map<TaskDto>(createdTask);
 
             return CreatedAtAction(nameof(GetTask), new { id = createdTask.Id }, 
                 ApiResponse<TaskDto>.SuccessResult(taskDto, "Task created successfully"));
@@ -245,7 +163,7 @@ public class TasksController : BaseController
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<ApiResponse<TaskDto>>> UpdateTask(string id, CreateTaskRequest request)
+    public async Task<ActionResult<ApiResponse<TaskDto>>> UpdateTask(string id, UpdateTaskRequest request)
     {
         try
         {
@@ -253,19 +171,21 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
 
-            var existingTask = await _taskRepository.GetByIdAsync(id);
+            var existingTask = await taskRepository.GetByIdAsync(id);
             if (existingTask == null)
                 return NotFound(ApiResponse<TaskDto>.ErrorResult("Task not found"));
 
             if (existingTask.AssignedUserId != userId)
                 return Forbid();
 
-            // Map the request to the existing task
-            _mapper.Map(request, existingTask);
+            // Selectively update only the provided fields
+            mapper.Map(request, existingTask);
+            
+            // Always update the timestamp
             existingTask.UpdatedAt = DateTime.UtcNow;
 
-            var updatedTask = await _taskRepository.UpdateAsync(id, existingTask);
-            var taskDto = _mapper.Map<TaskDto>(updatedTask);
+            var updatedTask = await taskRepository.UpdateAsync(id, existingTask);
+            var taskDto = mapper.Map<TaskDto>(updatedTask);
 
             return Ok(ApiResponse<TaskDto>.SuccessResult(taskDto, "Task updated successfully"));
         }
@@ -285,7 +205,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(id);
+            var task = await taskRepository.GetByIdAsync(id);
             if (task == null)
                 return NotFound(ApiResponse<TaskDto>.ErrorResult("Task not found"));
 
@@ -309,8 +229,8 @@ public class TasksController : BaseController
                 task.CompletedAt = null;
             }
 
-            var updatedTask = await _taskRepository.UpdateAsync(id, task);
-            var taskDto = _mapper.Map<TaskDto>(updatedTask);
+            var updatedTask = await taskRepository.UpdateAsync(id, task);
+            var taskDto = mapper.Map<TaskDto>(updatedTask);
 
             return Ok(ApiResponse<TaskDto>.SuccessResult(taskDto, $"Task status updated to {newStatus} successfully"));
         }
@@ -330,7 +250,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<TaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(id);
+            var task = await taskRepository.GetByIdAsync(id);
             if (task == null)
                 return NotFound(ApiResponse<TaskDto>.ErrorResult("Task not found"));
 
@@ -341,8 +261,8 @@ public class TasksController : BaseController
             task.CompletedAt = DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
 
-            var updatedTask = await _taskRepository.UpdateAsync(id, task);
-            var taskDto = _mapper.Map<TaskDto>(updatedTask);
+            var updatedTask = await taskRepository.UpdateAsync(id, task);
+            var taskDto = mapper.Map<TaskDto>(updatedTask);
 
             return Ok(ApiResponse<TaskDto>.SuccessResult(taskDto, "Task completed successfully"));
         }
@@ -362,14 +282,14 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<bool>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(id);
+            var task = await taskRepository.GetByIdAsync(id);
             if (task == null)
                 return NotFound(ApiResponse<bool>.ErrorResult("Task not found"));
 
             if (task.AssignedUserId != userId)
                 return Forbid();
 
-            var deleted = await _taskRepository.DeleteAsync(id);
+            var deleted = await taskRepository.DeleteAsync(id);
             return Ok(ApiResponse<bool>.SuccessResult(deleted, "Task deleted successfully"));
         }
         catch (Exception ex)
@@ -391,8 +311,8 @@ public class TasksController : BaseController
             if (month < 1 || month > 12)
                 return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid month value"));
 
-            var tasks = await _taskRepository.GetTasksByMonthAsync(userId, year, month);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var tasks = await taskRepository.GetTasksByMonthAsync(userId, year, month);
+            var taskDtos = mapper.Map<List<TaskDto>>(tasks);
 
             return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
         }
@@ -415,8 +335,8 @@ public class TasksController : BaseController
             if (!DateTime.TryParse(startDate, out var parsedStartDate))
                 return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid start date format"));
 
-            var tasks = await _taskRepository.GetTasksByWeekAsync(userId, parsedStartDate.Date);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var tasks = await taskRepository.GetTasksByWeekAsync(userId, parsedStartDate.Date);
+            var taskDtos = mapper.Map<List<TaskDto>>(tasks);
 
             return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
         }
@@ -444,8 +364,8 @@ public class TasksController : BaseController
             if (!DateTime.TryParse(endDate, out var parsedEndDate))
                 return BadRequest(ApiResponse<List<TaskDto>>.ErrorResult("Invalid end date format"));
 
-            var tasks = await _taskRepository.GetTasksByDateRangeAsync(userId, parsedStartDate.Date, parsedEndDate.Date);
-            var taskDtos = _mapper.Map<List<TaskDto>>(tasks);
+            var tasks = await taskRepository.GetTasksByDateRangeAsync(userId, parsedStartDate.Date, parsedEndDate.Date);
+            var taskDtos = mapper.Map<List<TaskDto>>(tasks);
 
             return Ok(ApiResponse<List<TaskDto>>.SuccessResult(taskDtos));
         }
@@ -466,7 +386,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
 
@@ -484,8 +404,8 @@ public class TasksController : BaseController
             task.Subtasks.Add(subtask);
             task.UpdatedAt = DateTime.UtcNow;
 
-            await _taskRepository.UpdateAsync(taskId, task);
-            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+            await taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = mapper.Map<SubTaskDto>(subtask);
 
             return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask added successfully"));
         }
@@ -505,7 +425,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
 
@@ -520,8 +440,8 @@ public class TasksController : BaseController
             subtask.Completed = request.Completed;
             task.UpdatedAt = DateTime.UtcNow;
 
-            await _taskRepository.UpdateAsync(taskId, task);
-            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+            await taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = mapper.Map<SubTaskDto>(subtask);
 
             return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask updated successfully"));
         }
@@ -541,7 +461,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<bool>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<bool>.ErrorResult("Task not found"));
 
@@ -553,7 +473,7 @@ public class TasksController : BaseController
                 return NotFound(ApiResponse<bool>.ErrorResult("Subtask not found"));
 
             task.UpdatedAt = DateTime.UtcNow;
-            await _taskRepository.UpdateAsync(taskId, task);
+            await taskRepository.UpdateAsync(taskId, task);
 
             return Ok(ApiResponse<bool>.SuccessResult(true, "Subtask deleted successfully"));
         }
@@ -573,7 +493,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<SubTaskDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<SubTaskDto>.ErrorResult("Task not found"));
 
@@ -587,8 +507,8 @@ public class TasksController : BaseController
             subtask.Completed = !subtask.Completed;
             task.UpdatedAt = DateTime.UtcNow;
 
-            await _taskRepository.UpdateAsync(taskId, task);
-            var subtaskDto = _mapper.Map<SubTaskDto>(subtask);
+            await taskRepository.UpdateAsync(taskId, task);
+            var subtaskDto = mapper.Map<SubTaskDto>(subtask);
 
             return Ok(ApiResponse<SubTaskDto>.SuccessResult(subtaskDto, "Subtask toggled successfully"));
         }
@@ -609,14 +529,14 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<CommentDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<CommentDto>.ErrorResult("Task not found"));
 
             if (task.AssignedUserId != userId)
                 return Forbid();
 
-            var user = await _userRepository.GetByIdAsync(userId);
+            var user = await userRepository.GetByIdAsync(userId);
             var authorName = user?.Name ?? "Unknown User";
 
             var comment = new Comment
@@ -632,8 +552,8 @@ public class TasksController : BaseController
             task.Comments.Add(comment);
             task.UpdatedAt = DateTime.UtcNow;
 
-            await _taskRepository.UpdateAsync(taskId, task);
-            var commentDto = _mapper.Map<CommentDto>(comment);
+            await taskRepository.UpdateAsync(taskId, task);
+            var commentDto = mapper.Map<CommentDto>(comment);
 
             return Ok(ApiResponse<CommentDto>.SuccessResult(commentDto, "Comment added successfully"));
         }
@@ -653,7 +573,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<CommentDto>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<CommentDto>.ErrorResult("Task not found"));
 
@@ -671,8 +591,8 @@ public class TasksController : BaseController
             comment.UpdatedAt = DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
 
-            await _taskRepository.UpdateAsync(taskId, task);
-            var commentDto = _mapper.Map<CommentDto>(comment);
+            await taskRepository.UpdateAsync(taskId, task);
+            var commentDto = mapper.Map<CommentDto>(comment);
 
             return Ok(ApiResponse<CommentDto>.SuccessResult(commentDto, "Comment updated successfully"));
         }
@@ -692,7 +612,7 @@ public class TasksController : BaseController
             if (userId == null)
                 return Unauthorized(ApiResponse<bool>.ErrorResult("User not authenticated"));
 
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            var task = await taskRepository.GetByIdAsync(taskId);
             if (task == null)
                 return NotFound(ApiResponse<bool>.ErrorResult("Task not found"));
 
@@ -711,7 +631,7 @@ public class TasksController : BaseController
                 return NotFound(ApiResponse<bool>.ErrorResult("Comment not found"));
 
             task.UpdatedAt = DateTime.UtcNow;
-            await _taskRepository.UpdateAsync(taskId, task);
+            await taskRepository.UpdateAsync(taskId, task);
 
             return Ok(ApiResponse<bool>.SuccessResult(true, "Comment deleted successfully"));
         }

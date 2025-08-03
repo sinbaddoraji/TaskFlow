@@ -5,13 +5,22 @@ export interface User {
   email: string;
   name: string;
   profilePicture?: string;
-  bio?: string;
-  phone?: string;
-  location?: string;
-  website?: string;
-  isActive: boolean;
+  preferences: UserPreferences;
   createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+}
+
+export interface UserPreferences {
+  theme: string;
+  timeFormat: string;
+  startOfWeek: string;
+  notifications: NotificationSettings;
+}
+
+export interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  taskReminders: boolean;
 }
 
 export interface LoginRequest {

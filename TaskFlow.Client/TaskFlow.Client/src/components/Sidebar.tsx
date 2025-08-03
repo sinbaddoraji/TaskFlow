@@ -6,6 +6,7 @@ import {
   Settings, 
   Home,
   Calendar,
+  CheckSquare,
   LogOut 
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -25,6 +26,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   const menuItems = [
     { icon: Calendar, label: 'Today', path: '/today' },
+    { icon: CheckSquare, label: 'All Tasks', path: '/tasks' },
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];

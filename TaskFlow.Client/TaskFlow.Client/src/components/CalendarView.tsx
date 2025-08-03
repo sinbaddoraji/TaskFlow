@@ -126,6 +126,10 @@ export default function CalendarView({
     );
     // Notify parent component
     onTaskUpdate?.(updatedTask);
+    
+    // Reload tasks to ensure consistency with server data
+    // This is important when task dates change and tasks move between views
+    loadTasks();
   };
 
 

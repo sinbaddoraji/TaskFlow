@@ -1,5 +1,7 @@
 import api from './api';
 import { format } from 'date-fns';
+import { validateApiResponse, validateApiBooleanResponse, logApiCall } from '../utils/apiUtils';
+import type { UpdateTaskRequest } from './taskService';
 
 export interface TaskDto {
   id: string;
@@ -77,21 +79,40 @@ export interface CreateTaskRequest {
   gitInfo?: GitInfoDto;
 }
 
+export interface TaskTimelineDto {
+  todayTasks: TaskDto[];
+  upcomingTasks: TaskDto[];
+}
+
+export interface SubtaskRequest {
+  title: string;
+  completed?: boolean;
+}
+
+export interface CommentRequest {
+  content: string;
+}
+
 export const calendarService = {
   // Get tasks for a specific month
   async getTasksByMonth(year: number, month: number): Promise<TaskDto[]> {
     try {
       const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/calendar/${year}/${month}`);
-      console.log('🔄 API Response - getTasksByMonth:', {
-        url: `/tasks/calendar/${year}/${month}`,
-        success: response.data.success,
-        taskCount: response.data.data.length,
-        statusBreakdown: response.data.data.reduce((acc, task) => {
-          acc[task.status] = (acc[task.status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        console.log('🔄 API Response - getTasksByMonth:', {
+          url: `/tasks/calendar/${year}/${month}`,
+          success: response.data.success,
+          taskCount: response.data.data.length,
+          statusBreakdown: response.data.data.reduce((acc, task) => {
+            acc[task.status] = (acc[task.status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        });
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to fetch tasks for the month');
     } catch (error) {
       console.error('Error fetching tasks by month:', error);
       throw error;
@@ -103,7 +124,12 @@ export const calendarService = {
     try {
       const formattedDate = format(startDate, 'yyyy-MM-dd');
       const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/calendar/week?startDate=${formattedDate}`);
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to fetch tasks for the week');
     } catch (error) {
       console.error('Error fetching tasks by week:', error);
       throw error;
@@ -118,7 +144,12 @@ export const calendarService = {
       const response = await api.get<ApiResponse<TaskDto[]>>(
         `/tasks/calendar/range?startDate=${formattedStartDate}&endDate=${formattedEndDate}`
       );
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to fetch tasks for the date range');
     } catch (error) {
       console.error('Error fetching tasks by date range:', error);
       throw error;
@@ -130,18 +161,23 @@ export const calendarService = {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/date/${formattedDate}`);
-      console.log('🔄 API Response - getTasksByDate:', {
-        url: `/tasks/date/${formattedDate}`,
-        date: formattedDate,
-        success: response.data.success,
-        taskCount: response.data.data.length,
-        statusBreakdown: response.data.data.reduce((acc, task) => {
-          acc[task.status] = (acc[task.status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        allStatuses: [...new Set(response.data.data.map(t => t.status))]
-      });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        console.log('🔄 API Response - getTasksByDate:', {
+          url: `/tasks/date/${formattedDate}`,
+          date: formattedDate,
+          success: response.data.success,
+          taskCount: response.data.data.length,
+          statusBreakdown: response.data.data.reduce((acc, task) => {
+            acc[task.status] = (acc[task.status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>),
+          allStatuses: [...new Set(response.data.data.map(t => t.status))]
+        });
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to fetch tasks for the date');
     } catch (error) {
       console.error('Error fetching tasks by date:', error);
       throw error;
@@ -150,21 +186,28 @@ export const calendarService = {
 
   // Get today's tasks
   async getTodayTasks(): Promise<TaskDto[]> {
+    const url = '/tasks/today';
     try {
-      const response = await api.get<ApiResponse<TaskDto[]>>('/tasks/today');
-      console.log('🔄 API Response - getTodayTasks:', {
-        url: '/tasks/today',
-        success: response.data.success,
-        taskCount: response.data.data.length,
-        statusBreakdown: response.data.data.reduce((acc, task) => {
-          acc[task.status] = (acc[task.status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        allStatuses: [...new Set(response.data.data.map(t => t.status))]
-      });
-      return response.data.data;
+      const response = await api.get<ApiResponse<TaskDto[]>>(url);
+      const tasks = validateApiResponse(response, 'Failed to fetch today\'s tasks');
+      
+      logApiCall('GET', url, undefined, response);
+      
+      // Additional logging for task analysis
+      if (tasks.length > 0) {
+        console.log('📊 Task Analysis - Today\'s Tasks:', {
+          taskCount: tasks.length,
+          statusBreakdown: tasks.reduce((acc, task) => {
+            acc[task.status] = (acc[task.status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>),
+          allStatuses: [...new Set(tasks.map(t => t.status))]
+        });
+      }
+      
+      return tasks;
     } catch (error) {
-      console.error('Error fetching today\'s tasks:', error);
+      logApiCall('GET', url, undefined, undefined, error);
       throw error;
     }
   },
@@ -173,7 +216,12 @@ export const calendarService = {
   async getUpcomingTasks(days: number = 7): Promise<TaskDto[]> {
     try {
       const response = await api.get<ApiResponse<TaskDto[]>>(`/tasks/upcoming?days=${days}`);
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to fetch upcoming tasks');
     } catch (error) {
       console.error('Error fetching upcoming tasks:', error);
       throw error;
@@ -184,7 +232,12 @@ export const calendarService = {
   async createTask(task: CreateTaskRequest): Promise<TaskDto> {
     try {
       const response = await api.post<ApiResponse<TaskDto>>('/tasks', task);
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to create task');
     } catch (error) {
       console.error('Error creating task:', error);
       throw error;
@@ -192,12 +245,18 @@ export const calendarService = {
   },
 
   // Update a task
-  async updateTask(id: string, task: CreateTaskRequest): Promise<TaskDto> {
+  async updateTask(id: string, task: UpdateTaskRequest): Promise<TaskDto> {
+    const url = `/tasks/${id}`;
     try {
-      const response = await api.put<ApiResponse<TaskDto>>(`/tasks/${id}`, task);
-      return response.data.data;
+      const response = await api.put<ApiResponse<TaskDto>>(url, task);
+      const updatedTask = validateApiResponse(response, `Failed to update task ${id}`);
+      
+      logApiCall('PUT', url, task, response);
+      
+      return updatedTask;
     } catch (error) {
-      console.error('Error updating task:', error);
+      logApiCall('PUT', url, task, undefined, error);
+      console.error(`Error updating task ${id}:`, error);
       throw error;
     }
   },
@@ -206,7 +265,12 @@ export const calendarService = {
   async updateTaskStatus(id: string, status: string): Promise<TaskDto> {
     try {
       const response = await api.patch<ApiResponse<TaskDto>>(`/tasks/${id}/status`, { status });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to update task status');
     } catch (error) {
       console.error('Error updating task status:', error);
       throw error;
@@ -217,7 +281,12 @@ export const calendarService = {
   async completeTask(id: string): Promise<TaskDto> {
     try {
       const response = await api.patch<ApiResponse<TaskDto>>(`/tasks/${id}/complete`);
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to complete task');
     } catch (error) {
       console.error('Error completing task:', error);
       throw error;
@@ -226,11 +295,17 @@ export const calendarService = {
 
   // Delete a task
   async deleteTask(id: string): Promise<boolean> {
+    const url = `/tasks/${id}`;
     try {
-      const response = await api.delete<ApiResponse<boolean>>(`/tasks/${id}`);
-      return response.data.data;
+      const response = await api.delete<ApiResponse<boolean>>(url);
+      const result = validateApiBooleanResponse(response, `Failed to delete task ${id}`);
+      
+      logApiCall('DELETE', url, undefined, response);
+      
+      return result;
     } catch (error) {
-      console.error('Error deleting task:', error);
+      logApiCall('DELETE', url, undefined, undefined, error);
+      console.error(`Error deleting task ${id}:`, error);
       throw error;
     }
   },
@@ -239,7 +314,12 @@ export const calendarService = {
   async addSubtask(taskId: string, title: string): Promise<SubTaskDto> {
     try {
       const response = await api.post<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks`, { title });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to add subtask');
     } catch (error) {
       console.error('Error adding subtask:', error);
       throw error;
@@ -249,7 +329,12 @@ export const calendarService = {
   async updateSubtask(taskId: string, subtaskId: string, title: string, completed: boolean): Promise<SubTaskDto> {
     try {
       const response = await api.put<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks/${subtaskId}`, { title, completed });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to update subtask');
     } catch (error) {
       console.error('Error updating subtask:', error);
       throw error;
@@ -259,7 +344,12 @@ export const calendarService = {
   async toggleSubtask(taskId: string, subtaskId: string): Promise<SubTaskDto> {
     try {
       const response = await api.patch<ApiResponse<SubTaskDto>>(`/tasks/${taskId}/subtasks/${subtaskId}/toggle`);
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to toggle subtask');
     } catch (error) {
       console.error('Error toggling subtask:', error);
       throw error;
@@ -267,11 +357,17 @@ export const calendarService = {
   },
 
   async deleteSubtask(taskId: string, subtaskId: string): Promise<boolean> {
+    const url = `/tasks/${taskId}/subtasks/${subtaskId}`;
     try {
-      const response = await api.delete<ApiResponse<boolean>>(`/tasks/${taskId}/subtasks/${subtaskId}`);
-      return response.data.data;
+      const response = await api.delete<ApiResponse<boolean>>(url);
+      const result = validateApiBooleanResponse(response, `Failed to delete subtask ${subtaskId}`);
+      
+      logApiCall('DELETE', url, undefined, response);
+      
+      return result;
     } catch (error) {
-      console.error('Error deleting subtask:', error);
+      logApiCall('DELETE', url, undefined, undefined, error);
+      console.error(`Error deleting subtask ${subtaskId}:`, error);
       throw error;
     }
   },
@@ -280,7 +376,12 @@ export const calendarService = {
   async addComment(taskId: string, content: string): Promise<CommentDto> {
     try {
       const response = await api.post<ApiResponse<CommentDto>>(`/tasks/${taskId}/comments`, { content });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to add comment');
     } catch (error) {
       console.error('Error adding comment:', error);
       throw error;
@@ -290,7 +391,12 @@ export const calendarService = {
   async updateComment(taskId: string, commentId: string, content: string): Promise<CommentDto> {
     try {
       const response = await api.put<ApiResponse<CommentDto>>(`/tasks/${taskId}/comments/${commentId}`, { content });
-      return response.data.data;
+      
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to update comment');
     } catch (error) {
       console.error('Error updating comment:', error);
       throw error;
@@ -298,11 +404,17 @@ export const calendarService = {
   },
 
   async deleteComment(taskId: string, commentId: string): Promise<boolean> {
+    const url = `/tasks/${taskId}/comments/${commentId}`;
     try {
-      const response = await api.delete<ApiResponse<boolean>>(`/tasks/${taskId}/comments/${commentId}`);
-      return response.data.data;
+      const response = await api.delete<ApiResponse<boolean>>(url);
+      const result = validateApiBooleanResponse(response, `Failed to delete comment ${commentId}`);
+      
+      logApiCall('DELETE', url, undefined, response);
+      
+      return result;
     } catch (error) {
-      console.error('Error deleting comment:', error);
+      logApiCall('DELETE', url, undefined, undefined, error);
+      console.error(`Error deleting comment ${commentId}:`, error);
       throw error;
     }
   }

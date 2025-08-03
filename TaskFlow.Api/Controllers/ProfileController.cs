@@ -19,7 +19,6 @@ namespace TaskFlow.Api.Controllers;
 public class ProfileController : BaseController
 {
     private readonly IUserRepository _userRepository;
-    private readonly IProjectRepository _projectRepository;
     private readonly ITaskRepository _taskRepository;
     private readonly IWebHostEnvironment _environment;
     private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
@@ -27,14 +26,12 @@ public class ProfileController : BaseController
 
     public ProfileController(
         IUserRepository userRepository,
-        IProjectRepository projectRepository,
         ITaskRepository taskRepository,
         IWebHostEnvironment environment,
         ILogger<ProfileController> logger)
         : base(logger)
     {
         _userRepository = userRepository;
-        _projectRepository = projectRepository;
         _taskRepository = taskRepository;
         _environment = environment;
     }
@@ -57,8 +54,6 @@ public class ProfileController : BaseController
             }
 
             // Get statistics
-            var projects = await _projectRepository.GetAllAsync();
-            var userProjects = projects.Where(p => p.OwnerId == userId || p.Members.Any(m => m.UserId == userId));
             var tasks = await _taskRepository.GetAllAsync();
             var userTasks = tasks.Where(t => t.AssignedUserId == userId || t.CreatedById == userId);
             
@@ -89,7 +84,6 @@ public class ProfileController : BaseController
                 IsActive = user.IsActive,
                 Statistics = new ProfileStatistics
                 {
-                    TotalProjects = userProjects.Count(),
                     ActiveTasks = userTasks.Count(t => t.Status != TaskFlow.Api.Models.Entities.TaskStatus.Completed),
                     CompletedTasks = userTasks.Count(t => t.Status == TaskFlow.Api.Models.Entities.TaskStatus.Completed),
                     OverdueTasks = userTasks.Count(t => t.DueDate < DateTime.UtcNow && t.Status != TaskFlow.Api.Models.Entities.TaskStatus.Completed)

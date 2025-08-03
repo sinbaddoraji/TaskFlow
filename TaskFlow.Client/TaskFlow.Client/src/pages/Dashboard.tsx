@@ -30,6 +30,8 @@ export default function Dashboard() {
   };
 
   const handleTaskSaved = () => {
+    // Force a complete refresh of the CalendarView component
+    // This ensures tasks are reloaded from the server after any changes
     setRefreshKey(prev => prev + 1);
   };
 

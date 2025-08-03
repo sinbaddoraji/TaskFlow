@@ -16,6 +16,5 @@ public class MongoDbContext
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<TaskItem> Tasks => _database.GetCollection<TaskItem>("tasks");
-    public IMongoCollection<Project> Projects => _database.GetCollection<Project>("projects");
     public IMongoCollection<TimeBlock> TimeBlocks => _database.GetCollection<TimeBlock>("timeblocks");
 }

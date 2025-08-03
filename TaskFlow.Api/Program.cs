@@ -30,7 +30,6 @@ builder.Services.AddSingleton<MongoDbContext>();
 // Add repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
-builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 
 // Add services
 builder.Services.AddScoped<IJwtService, JwtService>();

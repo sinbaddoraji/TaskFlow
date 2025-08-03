@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, X, Check, Circle, PlayCircle, CheckCircle2, PauseCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Filter, Circle, PlayCircle, CheckCircle2, PauseCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 type ColumnId = 'Pending' | 'InProgress' | 'Completed' | 'OnHold' | 'Cancelled';
 

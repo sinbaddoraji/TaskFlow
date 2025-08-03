@@ -1,5 +1,5 @@
 import api from './api';
-import type { User, ApiResponse } from './authService';
+import type { ApiResponse, UserPreferences } from './authService';
 
 export interface ProfileStatistics {
   totalProjects: number;
@@ -8,19 +8,19 @@ export interface ProfileStatistics {
   overdueTasks: number;
 }
 
-export interface UserPreferences {
-  theme: string;
-  timeFormat: string;
-  startOfWeek: string;
-  notifications: {
-    email: boolean;
-    push: boolean;
-    taskReminders: boolean;
-  };
-}
-
-export interface ProfileResponse extends User {
+export interface ProfileResponse {
+  id: string;
+  email: string;
+  name: string;
+  profilePicture?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
   preferences: UserPreferences;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
   statistics: ProfileStatistics;
 }
 

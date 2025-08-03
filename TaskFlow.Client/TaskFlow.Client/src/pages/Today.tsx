@@ -30,7 +30,13 @@ export default function Today() {
       setTasks(todayTasks);
     } catch (err) {
       console.error('Error fetching today\'s tasks:', err);
-      setError('Failed to load tasks. Please try again.');
+      
+      let errorMessage = 'Failed to load tasks. Please try again.';
+      if (err instanceof Error) {
+        errorMessage = `Failed to load tasks: ${err.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -48,7 +54,13 @@ export default function Today() {
       );
     } catch (err) {
       console.error('Error updating task status:', err);
-      setError('Failed to update task status. Please try again.');
+      
+      let errorMessage = 'Failed to update task status. Please try again.';
+      if (err instanceof Error) {
+        errorMessage = `Failed to update task status: ${err.message}`;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -65,7 +77,13 @@ export default function Today() {
       );
     } catch (err) {
       console.error('Error completing task:', err);
-      setError('Failed to complete task. Please try again.');
+      
+      let errorMessage = 'Failed to complete task. Please try again.';
+      if (err instanceof Error) {
+        errorMessage = `Failed to complete task: ${err.message}`;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -77,7 +95,13 @@ export default function Today() {
       setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
     } catch (err) {
       console.error('Error deleting task:', err);
-      setError('Failed to delete task. Please try again.');
+      
+      let errorMessage = 'Failed to delete task. Please try again.';
+      if (err instanceof Error) {
+        errorMessage = `Failed to delete task: ${err.message}`;
+      }
+      
+      setError(errorMessage);
     }
   };
 

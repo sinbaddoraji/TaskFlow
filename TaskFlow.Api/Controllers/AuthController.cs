@@ -4,10 +4,8 @@ using TaskFlow.Api.Models.Responses;
 using TaskFlow.Api.Services.Interfaces;
 using TaskFlow.Api.Repositories.Interfaces;
 using TaskFlow.Api.Models.Entities;
-using BCrypt.Net;
 using AutoMapper;
 using TaskFlow.Api.Models.DTOs;
-using FluentValidation;
 using TaskFlow.Api.Validators;
 using OtpNet;
 using System.Security.Cryptography;
@@ -17,24 +15,13 @@ namespace TaskFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-public class AuthController : BaseController
+public class AuthController(
+    IUserRepository userRepository,
+    IJwtService jwtService,
+    IMapper mapper,
+    ILogger<AuthController> logger)
+    : BaseController(logger)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IJwtService _jwtService;
-    private readonly IMapper _mapper;
-
-    public AuthController(
-        IUserRepository userRepository,
-        IJwtService jwtService,
-        IMapper mapper,
-        ILogger<AuthController> logger)
-        : base(logger)
-    {
-        _userRepository = userRepository;
-        _jwtService = jwtService;
-        _mapper = mapper;
-    }
-
     [HttpPost("register")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(RegisterRequest request)
     {
@@ -51,7 +38,7 @@ public class AuthController : BaseController
             }
             
             // Check if user already exists
-            if (await _userRepository.EmailExistsAsync(request.Email))
+            if (await userRepository.EmailExistsAsync(request.Email))
             {
                 return BadRequest(ApiResponse<AuthResponse>.ErrorResult("User with this email already exists"));
             }
@@ -66,9 +53,9 @@ public class AuthController : BaseController
                 UpdatedAt = DateTime.UtcNow
             };
 
-            var createdUser = await _userRepository.CreateAsync(user);
-            var token = _jwtService.GenerateToken(createdUser);
-            var userDto = _mapper.Map<UserDto>(createdUser);
+            var createdUser = await userRepository.CreateAsync(user);
+            var token = jwtService.GenerateToken(createdUser);
+            var userDto = mapper.Map<UserDto>(createdUser);
 
             var authResponse = new AuthResponse
             {
@@ -102,7 +89,7 @@ public class AuthController : BaseController
             }
             
             // Find user by email
-            var user = await _userRepository.GetByEmailAsync(request.Email);    
+            var user = await userRepository.GetByEmailAsync(request.Email);    
             if (user == null)
             {
                 return BadRequest(ApiResponse<AuthResponse>.ErrorResult("Invalid email or password"));
@@ -132,7 +119,7 @@ public class AuthController : BaseController
             {
                 user.FailedLoginAttempts = 0;
                 user.LockoutEndTime = null;
-                await _userRepository.UpdateAsync(user.Id, user);
+                await userRepository.UpdateAsync(user.Id, user);
             }
 
             // Check if MFA is enabled
@@ -143,14 +130,14 @@ public class AuthController : BaseController
                 {
                     RequiresMfa = true,
                     MfaToken = GenerateTemporaryMfaToken(user.Id),
-                    User = _mapper.Map<UserDto>(user)
+                    User = mapper.Map<UserDto>(user)
                 };
                 return Ok(ApiResponse<AuthResponse>.SuccessResult(mfaResponse, "MFA verification required"));
             }
 
             // Generate token
-            var token = _jwtService.GenerateToken(user);
-            var userDto = _mapper.Map<UserDto>(user);
+            var token = jwtService.GenerateToken(user);
+            var userDto = mapper.Map<UserDto>(user);
 
             var authResponse = new AuthResponse
             {
@@ -181,21 +168,21 @@ public class AuthController : BaseController
             }
 
             var token = authHeader.Substring("Bearer ".Length).Trim();
-            var userId = _jwtService.GetUserIdFromToken(token);
+            var userId = jwtService.GetUserIdFromToken(token);
             
             if (userId == null)
             {
                 return Unauthorized(ApiResponse<AuthResponse>.ErrorResult("Invalid token"));
             }
 
-            var user = await _userRepository.GetByIdAsync(userId);
+            var user = await userRepository.GetByIdAsync(userId);
             if (user == null || !user.IsActive)
             {
                 return Unauthorized(ApiResponse<AuthResponse>.ErrorResult("User not found or inactive"));
             }
 
-            var newToken = _jwtService.GenerateToken(user);
-            var userDto = _mapper.Map<UserDto>(user);
+            var newToken = jwtService.GenerateToken(user);
+            var userDto = mapper.Map<UserDto>(user);
 
             var authResponse = new AuthResponse
             {
@@ -224,7 +211,7 @@ public class AuthController : BaseController
                 return Unauthorized(ApiResponse<AuthResponse>.ErrorResult("Invalid or expired MFA token"));
             }
 
-            var user = await _userRepository.GetByIdAsync(userId);
+            var user = await userRepository.GetByIdAsync(userId);
             if (user == null || !user.IsActive)
             {
                 return Unauthorized(ApiResponse<AuthResponse>.ErrorResult("User not found or inactive"));
@@ -248,7 +235,7 @@ public class AuthController : BaseController
                         isValid = true;
                         // Remove used backup code
                         user.MfaBackupCodes.Remove(hashedCode);
-                        await _userRepository.UpdateAsync(user.Id, user);
+                        await userRepository.UpdateAsync(user.Id, user);
                         break;
                     }
                 }
@@ -271,18 +258,18 @@ public class AuthController : BaseController
                     user.LockoutEndTime = DateTime.UtcNow.AddMinutes(15);
                 }
                 
-                await _userRepository.UpdateAsync(user.Id, user);
+                await userRepository.UpdateAsync(user.Id, user);
                 return BadRequest(ApiResponse<AuthResponse>.ErrorResult("Invalid verification code"));
             }
 
             // Reset failed attempts
             user.FailedLoginAttempts = 0;
             user.LockoutEndTime = null;
-            await _userRepository.UpdateAsync(user.Id, user);
+            await userRepository.UpdateAsync(user.Id, user);
 
             // Generate full access token
-            var token = _jwtService.GenerateToken(user);
-            var userDto = _mapper.Map<UserDto>(user);
+            var token = jwtService.GenerateToken(user);
+            var userDto = mapper.Map<UserDto>(user);
 
             var authResponse = new AuthResponse
             {

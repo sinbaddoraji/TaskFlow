@@ -51,22 +51,20 @@ public class MappingProfile : Profile
 
         CreateMap<GitInfoRequest, GitInfo>();
 
-        // Project mappings
-        CreateMap<Project, ProjectDto>()
-            .ForMember(dest => dest.Members, opt => opt.MapFrom(src => src.Members));
-
-        CreateMap<ProjectMember, ProjectMemberDto>()
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
-
-        CreateMap<ProjectSettings, ProjectSettingsDto>()
-            .ForMember(dest => dest.DefaultTaskPriority, opt => opt.MapFrom(src => src.DefaultTaskPriority.ToString()));
-
-        CreateMap<CreateProjectRequest, Project>()
+        // Update Task mappings - selective field updates only
+        CreateMap<UpdateTaskRequest, TaskItem>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
-            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow));
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
+            .ForMember(dest => dest.Comments, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority != null ? Enum.Parse<TaskPriority>(src.Priority, true) : TaskPriority.Medium))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status != null ? Enum.Parse<Models.Entities.TaskStatus>(src.Status, true) : Models.Entities.TaskStatus.Pending))
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
-        CreateMap<ProjectSettingsRequest, ProjectSettings>()
-            .ForMember(dest => dest.DefaultTaskPriority, opt => opt.MapFrom(src => Enum.Parse<TaskPriority>(src.DefaultTaskPriority, true)));
-    }
+        CreateMap<UpdateSubTaskRequest, SubTask>()
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
+  }
 }
