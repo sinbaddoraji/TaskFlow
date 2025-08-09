@@ -1,6 +1,8 @@
 using FluentValidation;
 using TaskFlow.Api.Models.Requests;
 using System.Text.RegularExpressions;
+using TaskFlow.Api.Services.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace TaskFlow.Api.Validators;
 

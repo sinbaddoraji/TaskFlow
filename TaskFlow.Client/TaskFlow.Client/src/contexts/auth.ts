@@ -7,7 +7,7 @@ export interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<{ requiresMfa?: boolean; mfaToken?: string }>;
   register: (userData: RegisterRequest) => Promise<void>;
   verifyMfa: (mfaToken: string, code?: string, backupCode?: string) => Promise<void>;
-  logout: () => void;
+  logout: (revokeAllTokens?: boolean) => Promise<void>;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
 }

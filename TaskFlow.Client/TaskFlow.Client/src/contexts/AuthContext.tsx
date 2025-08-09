@@ -13,21 +13,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!user && authService.isAuthenticated();
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     // Check if user is already logged in
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
       try {
         const currentUser = authService.getCurrentUser();
-        const token = authService.getToken();
         
-        if (currentUser && token) {
+        if (currentUser) {
+          // Set the user from localStorage first
           setUser(currentUser);
+          
+          // Then try to refresh the token in the background to validate the session
+          try {
+            const authResponse = await authService.refreshToken();
+            // Update user data if refresh succeeds
+            if (authResponse && authResponse.user) {
+              setUser(authResponse.user);
+            }
+          } catch (error) {
+            console.log('Session refresh failed, attempting re-authentication');
+            // Don't clear auth immediately - let the user stay logged in
+            // The interceptor will handle 401s and redirect if needed
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        authService.logout();
       } finally {
         setLoading(false);
       }
@@ -60,8 +72,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(authResponse.user);
   };
 
-  const logout = (): void => {
-    authService.logout();
+  const logout = async (revokeAllTokens = false): Promise<void> => {
+    await authService.logout(revokeAllTokens);
     setUser(null);
   };
 

@@ -8,21 +8,35 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable sending cookies
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add CSRF token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Ensure credentials are included
+    config.withCredentials = true;
+    
+    // Add CSRF token for state-changing requests
+    if (config.method && ['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        config.headers['X-XSRF-TOKEN'] = csrfToken;
+      }
     }
+    
     return config;
   },
   (error) => {
     return Promise.reject(error);
   }
 );
+
+// Helper function to get CSRF token from cookie
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+  return match ? match[1] : null;
+}
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
@@ -33,19 +47,31 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't retry refresh endpoint itself or auth endpoints
+      if (originalRequest.url?.includes('/auth/')) {
+        // Only clear and redirect for non-refresh auth endpoints
+        if (!originalRequest.url?.includes('/auth/refresh')) {
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+      
       originalRequest._retry = true;
       
       try {
-        const response = await api.post('/auth/refresh');
-        const { token } = response.data.data;
+        // Try to refresh the token - cookies will be sent automatically
+        const refreshResponse = await api.post('/auth/refresh');
         
-        localStorage.setItem('authToken', token);
-        api.defaults.headers.Authorization = `Bearer ${token}`;
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        // Update user data if available
+        if (refreshResponse.data?.data?.user) {
+          localStorage.setItem('user', JSON.stringify(refreshResponse.data.data.user));
+        }
         
+        // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
-        localStorage.removeItem('authToken');
+        // Clear user data and redirect to login
         localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);

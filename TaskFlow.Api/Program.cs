@@ -8,6 +8,8 @@ using TaskFlow.Api.Services.Interfaces;
 using TaskFlow.Api.Services.Implementations;
 using Serilog;
 using FluentValidation.AspNetCore;
+using AspNetCoreRateLimit;
+using RateLimitRule = TaskFlow.Api.Data.Configuration.RateLimitRule;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,76 @@ builder.Services.Configure<DatabaseSettings>(
     builder.Configuration.GetSection("Database"));
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("JwtSettings"));
+builder.Services.Configure<RateLimitSettings>(
+    builder.Configuration.GetSection("RateLimitSettings"));
+builder.Services.Configure<PasswordPolicySettings>(
+    builder.Configuration.GetSection("PasswordPolicy"));
+
+// Add rate limiting services
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
+
+// Configure rate limiting
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429;
+    options.RealIpHeader = "X-Real-IP";
+    options.ClientIdHeader = "X-ClientId";
+    options.GeneralRules = new List<AspNetCoreRateLimit.RateLimitRule>
+    {
+        new AspNetCoreRateLimit.RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1h",
+            Limit = 1000
+        }
+    };
+    options.EndpointWhitelist = new List<string> { "get:/api/v1/health" };
+    options.ClientWhitelist = new List<string>();
+    options.IpWhitelist = new List<string>();
+});
+
+// Configure specific endpoint rate limits
+builder.Services.Configure<IpRateLimitPolicies>(options =>
+{
+    options.IpRules = new List<IpRateLimitPolicy>
+    {
+        new IpRateLimitPolicy
+        {
+            Ip = "*",
+            Rules = new List<AspNetCoreRateLimit.RateLimitRule>
+            {
+                new AspNetCoreRateLimit.RateLimitRule
+                {
+                    Endpoint = "post:/api/v1/auth/login",
+                    Period = "15m",
+                    Limit = 5
+                },
+                new AspNetCoreRateLimit.RateLimitRule
+                {
+                    Endpoint = "post:/api/v1/auth/register",
+                    Period = "1h",
+                    Limit = 3
+                },
+                new AspNetCoreRateLimit.RateLimitRule
+                {
+                    Endpoint = "post:/api/v1/auth/refresh",
+                    Period = "15m",
+                    Limit = 10
+                },
+                new AspNetCoreRateLimit.RateLimitRule
+                {
+                    Endpoint = "post:/api/v1/auth/verify-mfa",
+                    Period = "15m",
+                    Limit = 5
+                }
+            }
+        }
+    };
+});
 
 // Add MongoDB
 builder.Services.AddSingleton<MongoDbContext>();
@@ -31,9 +103,13 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 // Add services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<IAuthAuditService, AuthAuditService>();
+builder.Services.AddScoped<ICsrfService, CsrfService>();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
@@ -51,7 +127,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowCredentials()
+              .WithExposedHeaders("Set-Cookie");
     });
 });
 
@@ -71,6 +148,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtSettings?.Audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
+        };
+        
+        // Configure JWT Bearer to read from cookies
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Try to get token from cookie first
+                var token = context.Request.Cookies["AccessToken"];
+                if (!string.IsNullOrEmpty(token))
+                {
+                    context.Token = token;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -124,6 +216,9 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
 app.UseCors();
+
+// Add rate limiting middleware
+app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -14,8 +14,13 @@ public class MongoDbContext
         _database = client.GetDatabase(settings.Value.DatabaseName);
     }
 
+    public IMongoDatabase Database => _database;
+
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<TaskItem> Tasks => _database.GetCollection<TaskItem>("tasks");
     public IMongoCollection<TimeBlock> TimeBlocks => _database.GetCollection<TimeBlock>("timeblocks");
     public IMongoCollection<Project> Projects => _database.GetCollection<Project>("projects");
+    public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
+    public IMongoCollection<AuthAuditLog> AuthAuditLogs => _database.GetCollection<AuthAuditLog>("authauditlogs");
+    public IMongoCollection<PasswordHistory> PasswordHistory => _database.GetCollection<PasswordHistory>("passwordhistory");
 }

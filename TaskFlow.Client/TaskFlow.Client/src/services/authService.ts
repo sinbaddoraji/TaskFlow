@@ -35,8 +35,8 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  token: string;
   expiresAt: string;
+  refreshExpiresAt?: string;
   user: User;
   requiresMfa?: boolean;
   mfaToken?: string;
@@ -57,7 +57,6 @@ export const authService = {
       const authData = response.data.data;
       
       if (!authData.requiresMfa) {
-        localStorage.setItem('authToken', authData.token);
         localStorage.setItem('user', JSON.stringify(authData.user));
       }
       
@@ -72,7 +71,6 @@ export const authService = {
     
     if (response.data.success && response.data.data) {
       const authData = response.data.data;
-      localStorage.setItem('authToken', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
       return authData;
     }
@@ -89,7 +87,6 @@ export const authService = {
     
     if (response.data.success && response.data.data) {
       const authData = response.data.data;
-      localStorage.setItem('authToken', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
       return authData;
     }
@@ -102,7 +99,6 @@ export const authService = {
     
     if (response.data.success && response.data.data) {
       const authData = response.data.data;
-      localStorage.setItem('authToken', authData.token);
       localStorage.setItem('user', JSON.stringify(authData.user));
       return authData;
     }
@@ -110,8 +106,19 @@ export const authService = {
     throw new Error('Token refresh failed');
   },
 
-  logout(): void {
-    localStorage.removeItem('authToken');
+  async logout(revokeAllTokens = false): Promise<void> {
+    try {
+      await api.post('/auth/logout', {
+        revokeAllTokens,
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    this.clearAuth();
+  },
+
+  clearAuth(): void {
     localStorage.removeItem('user');
   },
 
@@ -120,13 +127,9 @@ export const authService = {
     return userStr ? JSON.parse(userStr) : null;
   },
 
-  getToken(): string | null {
-    return localStorage.getItem('authToken');
-  },
 
   isAuthenticated(): boolean {
-    const token = this.getToken();
     const user = this.getCurrentUser();
-    return !!(token && user);
+    return !!user;
   },
 };
