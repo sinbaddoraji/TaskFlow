@@ -236,11 +236,9 @@ public class AuthController(
     {
         try
         {
-            // Debug: Log all cookies and headers received
-            _logger.LogInformation("Refresh endpoint called. Cookies received: {Cookies}", 
-                string.Join(", ", Request.Cookies.Select(c => $"{c.Key}={c.Value?.Substring(0, Math.Min(c.Value.Length, 20))}...")));
-            _logger.LogInformation("Request headers: Origin={Origin}, Referer={Referer}, UserAgent={UserAgent}", 
-                Request.Headers["Origin"], Request.Headers["Referer"], Request.Headers["User-Agent"]);
+            // Log refresh token request (without sensitive data)
+            _logger.LogInformation("Refresh token endpoint called from IP: {IPAddress}", 
+                Request.HttpContext.Connection.RemoteIpAddress?.ToString());
             
             // Get refresh token from cookie
             var refreshTokenFromCookie = Request.Cookies["RefreshToken"];
