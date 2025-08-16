@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: taskflow-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: TaskFlowDb
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Backend API
+  taskflow-api:
+    build:
+      context: .
+      dockerfile: TaskFlow.Api/Dockerfile
+    image: taskflow-api:${VERSION:-latest}
+    container_name: taskflow-api
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      # ASP.NET Core Configuration
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:8080"
+      
+      # Database Configuration
+      DatabaseSettings__ConnectionString: "mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017"
+      DatabaseSettings__DatabaseName: "TaskFlowDb"
+      
+      # JWT Configuration
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: ${JWT_ISSUER:-TaskFlowAPI}
+      Jwt__Audience: ${JWT_AUDIENCE:-TaskFlowClient}
+      Jwt__ExpirationInMinutes: ${JWT_EXPIRATION:-1440}
+      Jwt__RefreshTokenExpirationInDays: ${JWT_REFRESH_EXPIRATION:-30}
+      
+      # CORS Configuration
+      Cors__AllowedOrigins__0: http://localhost
+      Cors__AllowedOrigins__1: ${FRONTEND_URL:-http://localhost}
+      Cors__AllowedOrigins__2: ${ADDITIONAL_CORS_ORIGIN}
+      
+      # Security Settings
+      Security__EnableRateLimiting: ${ENABLE_RATE_LIMITING:-true}
+      Security__EnableCsrf: ${ENABLE_CSRF:-true}
+      Security__MaxLoginAttempts: ${MAX_LOGIN_ATTEMPTS:-5}
+      Security__LockoutDurationMinutes: ${LOCKOUT_DURATION:-15}
+      
+      # Password Policy
+      PasswordPolicy__RequireDigit: ${PASSWORD_REQUIRE_DIGIT:-true}
+      PasswordPolicy__RequiredLength: ${PASSWORD_MIN_LENGTH:-8}
+      PasswordPolicy__RequireNonAlphanumeric: ${PASSWORD_REQUIRE_SPECIAL:-true}
+      PasswordPolicy__RequireUppercase: ${PASSWORD_REQUIRE_UPPERCASE:-true}
+      PasswordPolicy__RequireLowercase: ${PASSWORD_REQUIRE_LOWERCASE:-true}
+      
+      # Logging
+      Serilog__MinimumLevel__Default: ${LOG_LEVEL:-Information}
+      Serilog__MinimumLevel__Override__Microsoft: Warning
+      Serilog__MinimumLevel__Override__System: Warning
+      Serilog__WriteTo__0__Name: Console
+      Serilog__WriteTo__1__Name: File
+      Serilog__WriteTo__1__Args__path: "/app/logs/log-.txt"
+      Serilog__WriteTo__1__Args__rollingInterval: Day
+      Serilog__WriteTo__1__Args__retainedFileCountLimit: 30
+      
+    volumes:
+      - api_logs:/app/logs
+      - api_uploads:/app/wwwroot/uploads
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Application
+  taskflow-frontend:
+    build:
+      context: TaskFlow.Client
+      dockerfile: Dockerfile
+    image: taskflow-frontend:${VERSION:-latest}
+    container_name: taskflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - taskflow-api
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  api_logs:
+    driver: local
+  api_uploads:
+    driver: local
+
+networks:
+  taskflow-network:
+    driver: bridge

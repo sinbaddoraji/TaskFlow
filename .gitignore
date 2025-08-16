@@ -184,3 +184,17 @@ yarn-error.log*
 *.temp
 *.swp
 TaskFlow.Api/appsettings.Development.json
+
+# Production environment files
+.env.production
+.env.local
+*.env
+!*.env.example
+!portainer.env.example
+
+# Deployment logs
+deployment.log
+backup.log
+
+# Local backup files
+/backups/
